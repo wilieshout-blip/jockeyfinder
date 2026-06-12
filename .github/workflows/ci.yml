@@ -1,0 +1,1 @@
+{"name":"Build check","on":{"push":{"branches":["main"]},"workflow_dispatch":{}},"jobs":{"build":{"runs-on":"ubuntu-latest","steps":[{"uses":"actions/checkout@v4"},{"uses":"actions/setup-node@v4","with":{"node-version":"20"}},{"name":"Install and build","run":"set -eo pipefail; npm install --no-audit --no-fund 2>&1 | tail -n 30; npm run build 2>&1 | tail -n 150"}]}}}
