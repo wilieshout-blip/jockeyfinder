@@ -28,6 +28,21 @@ export function SiteFooter() {
               <ul className="space-y-2 text-zinc-600">
                 <li><Link className="hover:text-ink" href="/login">Log in</Link></li>
                 <li><Link className="hover:text-ink" href="/dashboard">Dashboard</Link></li>
+                <li>
+                  <a
+                    className="inline-flex items-center gap-1.5 hover:text-ink"
+                    href="https://instagram.com/jockeyfinder"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                      <rect x="3" y="3" width="18" height="18" rx="5" />
+                      <circle cx="12" cy="12" r="4" />
+                      <circle cx="17.2" cy="6.8" r="0.9" fill="currentColor" stroke="none" />
+                    </svg>
+                    Instagram
+                  </a>
+                </li>
               </ul>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ButtonHTMLAttributes } from "react";
 
-type Variant = "primary" | "accent" | "outline" | "ghost" | "danger";
+type Variant = "primary" | "accent" | "outline" | "ghost" | "danger" | "inverse";
 type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
@@ -10,6 +10,8 @@ const variants: Record<Variant, string> = {
   outline:
     "border border-line bg-white text-ink hover:border-zinc-400 hover:bg-mist",
   ghost: "text-zinc-700 hover:bg-mist",
+  inverse:
+    "border border-zinc-600 bg-transparent text-white hover:border-zinc-400 hover:bg-zinc-800",
   danger: "border border-line bg-white text-red-700 hover:bg-red-50",
 };
 

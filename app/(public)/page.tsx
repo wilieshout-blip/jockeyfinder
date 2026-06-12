@@ -41,10 +41,10 @@ const icons = {
 
 function HeroRacecard() {
   const riders = [
-    { name: "S. Walker", weight: "55.5kg", claim: null },
-    { name: "M. Te Rangi", weight: "53kg", claim: "a2" },
-    { name: "J. O'Connor", weight: "56kg", claim: null },
-    { name: "A. Pereira", weight: "52.5kg", claim: "a3" },
+    { name: "O. Bosson", weight: "57kg", claim: null },
+    { name: "C. Grylls", weight: "53kg", claim: null },
+    { name: "S. Spratt", weight: "52kg", claim: null },
+    { name: "M. Hashizume", weight: "51.5kg", claim: "a2" },
   ];
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 shadow-lift backdrop-blur sm:p-5">
@@ -202,11 +202,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/login"
-                className={buttonClasses(
-                  "outline",
-                  "lg",
-                  "border-zinc-700 bg-transparent text-white hover:bg-zinc-900 hover:border-zinc-500"
-                )}
+                className={buttonClasses("inverse", "lg")}
               >
                 Log in
               </Link>
@@ -408,11 +404,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/meetings"
-              className={buttonClasses(
-                "outline",
-                "lg",
-                "border-zinc-700 bg-transparent text-white hover:bg-zinc-900 hover:border-zinc-500"
-              )}
+              className={buttonClasses("inverse", "lg")}
             >
               See who&apos;s riding
             </Link>
