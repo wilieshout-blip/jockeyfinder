@@ -1,8 +1,12 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/ui/avatar";
 import { VerifiedBadge } from "@/components/ui/badge";
+import { buttonClasses } from "@/components/ui/button";
+import { startDirectMessage } from "@/app/dashboard/messages/actions";
 import { Card, CardBody } from "@/components/ui/card";
 
 interface PublicTrainer {
@@ -20,6 +24,9 @@ export default async function TrainerProfilePage({
   params: { id: string };
 }) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: trainer } = await supabase
     .from("public_profiles")
@@ -56,6 +63,14 @@ export default async function TrainerProfilePage({
           <p className="mt-1 text-xs text-zinc-400">
             Verified against the NZTR people registry
           </p>
+          {user && user.id !== trainer.id ? (
+            <form action={startDirectMessage} className="mt-3">
+              <input type="hidden" name="user_id" value={trainer.id} />
+              <button type="submit" className={buttonClasses("outline", "sm")}>
+                Message
+              </button>
+            </form>
+          ) : null}
         </div>
       </div>
 

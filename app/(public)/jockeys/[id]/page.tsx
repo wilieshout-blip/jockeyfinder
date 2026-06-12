@@ -1,9 +1,12 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, ClothChip, VerifiedBadge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
+import { startDirectMessage } from "@/app/dashboard/messages/actions";
 import { Card, CardBody } from "@/components/ui/card";
 import { DateBlock } from "@/components/racing";
 import { formatClaim, formatWeight, nzToday } from "@/lib/utils";
@@ -117,14 +120,24 @@ export default async function JockeyProfilePage({
           </div>
         </div>
 
-        {canRequest ? (
-          <Link
-            href={`/dashboard/requests/new?jockey=${jockey.id}`}
-            className={buttonClasses("accent", "md", "shrink-0")}
-          >
-            Request a ride
-          </Link>
-        ) : null}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {canRequest ? (
+            <Link
+              href={`/dashboard/requests/new?jockey=${jockey.id}`}
+              className={buttonClasses("accent", "md")}
+            >
+              Request a ride
+            </Link>
+          ) : null}
+          {user && user.id !== jockey.id ? (
+            <form action={startDirectMessage}>
+              <input type="hidden" name="user_id" value={jockey.id} />
+              <button type="submit" className={buttonClasses("outline", "md")}>
+                Message
+              </button>
+            </form>
+          ) : null}
+        </div>
       </div>
 
       {jockey.bio ? (

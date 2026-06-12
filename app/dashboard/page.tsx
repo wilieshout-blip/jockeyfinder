@@ -7,6 +7,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty";
 import { DateBlock } from "@/components/racing";
 import { QuickWeightForm } from "@/components/quick-weight-form";
+import { IdUploadForm } from "@/components/id-upload-form";
 import {
   REQUEST_STATUS_STYLES,
   cn,
@@ -35,6 +36,12 @@ function VerificationBanner({ profile }: { profile: Profile }) {
         : profile.role === "agent"
           ? "Agent accounts are approved manually by an admin, even when your phone matches the registry. You will get full access once approved."
           : "We could not match your phone number against the NZTR registry. Check it on your profile page, or wait for a manual review."}
+      {!profile.registry_match && profile.role !== "agent" ? (
+        <IdUploadForm
+          userId={profile.id}
+          uploadedAt={profile.id_document_uploaded_at ?? null}
+        />
+      ) : null}
     </div>
   );
 }

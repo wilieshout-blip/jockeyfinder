@@ -24,6 +24,8 @@ export interface Profile {
   base_region: string | null;
   preferred_tracks: string | null;
   availability_notes: string | null;
+  id_document_path: string | null;
+  id_document_uploaded_at: string | null;
   created_at: string;
   updated_at: string;
 }

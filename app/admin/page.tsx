@@ -22,6 +22,7 @@ type PendingProfile = {
   registry_match: boolean | null;
   created_at: string;
   profile_photo_url: string | null;
+  id_document_path: string | null;
 };
 
 async function count(admin: ReturnType<typeof createAdminClient>, table: string, filters?: (q: any) => any) {
@@ -55,7 +56,7 @@ export default async function AdminPage() {
   const { data: pendingJockeys } = await admin
     .from("profiles")
     .select(
-      "id, full_name, email, role, phone, base_region, registry_match, created_at, profile_photo_url"
+      "id, full_name, email, role, phone, base_region, registry_match, created_at, profile_photo_url, id_document_path"
     )
     .eq("role", "jockey")
     .eq("verification_status", "pending")
@@ -64,11 +65,23 @@ export default async function AdminPage() {
   const { data: pendingAgents } = await admin
     .from("profiles")
     .select(
-      "id, full_name, email, role, phone, base_region, registry_match, created_at, profile_photo_url"
+      "id, full_name, email, role, phone, base_region, registry_match, created_at, profile_photo_url, id_document_path"
     )
     .eq("role", "agent")
     .eq("verification_status", "pending")
     .order("created_at", { ascending: true });
+
+  // Short lived links so the admin can eyeball uploaded IDs.
+  const idDocLinks = new Map<string, string>();
+  const pendingWithDocs = [...(pendingJockeys || []), ...(pendingAgents || [])].filter(
+    (p: any) => p.id_document_path
+  );
+  for (const p of pendingWithDocs) {
+    const { data: signed } = await admin.storage
+      .from("identity-docs")
+      .createSignedUrl((p as any).id_document_path, 600);
+    if (signed?.signedUrl) idDocLinks.set((p as any).id, signed.signedUrl);
+  }
 
   const { data: recentTrainers } = await admin
     .from("profiles")
@@ -134,6 +147,18 @@ export default async function AdminPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {idDocLinks.has(p.id) ? (
+                  <a
+                    href={idDocLinks.get(p.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700 hover:bg-turf-100"
+                  >
+                    View ID
+                  </a>
+                ) : (
+                  <Badge tone="neutral">No ID uploaded</Badge>
+                )}
                 {kind === "agent" && (
                   <Badge tone={p.registry_match ? "turf" : "amber"}>
                     {p.registry_match ? "Registry match" : "No registry match"}

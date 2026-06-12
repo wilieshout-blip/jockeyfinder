@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -5,6 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { VerifiedBadge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty";
+import { RegistryPeople } from "@/components/registry-people";
 
 export const metadata: Metadata = {
   title: "Trainers | JockeyFinder",
@@ -88,6 +91,8 @@ export default async function TrainersPage() {
           the NZTR registry. Sign up as a trainer to appear here.
         </EmptyState>
       )}
+
+      <RegistryPeople role="trainer" signupLabel="I am a trainer, sign me up" />
     </div>
   );
 }

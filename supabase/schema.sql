@@ -181,6 +181,8 @@ create table if not exists public.profiles (
   base_region text,
   preferred_tracks text,
   availability_notes text,
+  id_document_path text,
+  id_document_uploaded_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -195,6 +197,7 @@ create table if not exists public.nztr_people_registry (
   id uuid primary key default gen_random_uuid(),
   role text not null check (role in ('trainer', 'agent', 'jockey')),
   full_name text,
+  location text,
   phone text,
   phone_normalized text,
   created_at timestamptz not null default now(),
@@ -459,7 +462,7 @@ begin
     new.registry_match := old.registry_match;
   end if;
 
-  if new.role in ('trainer', 'agent') and new.phone_normalized is not null then
+  if new.role in ('trainer', 'agent', 'jockey') and new.phone_normalized is not null then
     select exists (
       select 1 from public.nztr_people_registry r
       where r.role = new.role
@@ -468,7 +471,9 @@ begin
 
     if matched then
       new.registry_match := true;
-      if new.role = 'trainer' then
+      -- Trainers and jockeys on the official register are trusted on
+      -- the spot. Agents still need a manual admin sign off.
+      if new.role in ('trainer', 'jockey') then
         new.verified := true;
         new.verification_status := 'approved';
         new.status := 'approved';
@@ -820,6 +825,48 @@ create policy "avatars_own_delete" on storage.objects
     bucket_id = 'avatars'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- Private bucket for identity documents. No public access at all,
+-- admins read through short lived signed URLs created server side.
+insert into storage.buckets (id, name, public)
+values ('identity-docs', 'identity-docs', false)
+on conflict (id) do nothing;
+
+drop policy if exists "identity_own_insert" on storage.objects;
+create policy "identity_own_insert" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'identity-docs'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "identity_own_update" on storage.objects;
+create policy "identity_own_update" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'identity-docs'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- Public directory listing of registry people. Names and locations
+-- only, never phone numbers. People who have claimed their listing by
+-- signing up are excluded because their live profile shows instead.
+create or replace view public.public_registry_people
+with (security_invoker = off) as
+select
+  r.id,
+  r.role,
+  r.full_name,
+  r.location
+from public.nztr_people_registry r
+where r.role in ('jockey', 'trainer')
+  and r.full_name is not null
+  and not exists (
+    select 1 from public.profiles p
+    where p.role = r.role
+      and p.phone_normalized = r.phone_normalized
+      and p.verified = true
+  );
+
+grant select on public.public_registry_people to anon, authenticated;
 
 -- ------------------------------------------------------------
 -- 7. Realtime for chat

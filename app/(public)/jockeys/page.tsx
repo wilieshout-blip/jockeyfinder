@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -5,6 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge, ClothChip } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty";
+import { RegistryPeople } from "@/components/registry-people";
 import { formatClaim, formatWeight, nzToday, nzDatePlusDays } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -138,6 +141,8 @@ export default async function JockeysPage() {
           a jockey, sign up and complete your profile to get verified.
         </EmptyState>
       )}
+
+      <RegistryPeople role="jockey" signupLabel="I am a jockey, sign me up" />
     </div>
   );
 }
