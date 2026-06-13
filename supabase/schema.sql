@@ -868,6 +868,112 @@ where r.role in ('jockey', 'trainer')
 
 grant select on public.public_registry_people to anon, authenticated;
 
+-- Self refreshing race calendar. Every hour the database asks
+-- LoveRacing for the next three months of meetings and upserts them.
+create extension if not exists pg_net;
+create extension if not exists pg_cron;
+
+create table if not exists public.loveracing_sync_state (
+  id bigint generated always as identity primary key,
+  request_id bigint not null,
+  requested_at timestamptz not null default now(),
+  processed_at timestamptz,
+  meetings_upserted int
+);
+
+alter table public.loveracing_sync_state enable row level security;
+
+create or replace function public.sync_loveracing()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  pending record;
+  upserted int;
+  req_id bigint;
+  nz_today date := (now() at time zone 'Pacific/Auckland')::date;
+begin
+  for pending in
+    select s.id, s.request_id
+    from public.loveracing_sync_state s
+    where s.processed_at is null
+    order by s.requested_at
+  loop
+    if exists (
+      select 1 from net._http_response r
+      where r.id = pending.request_id and r.status_code = 200
+    ) then
+      with raw as (
+        select (r.content::jsonb ->> 'd')::jsonb as arr
+        from net._http_response r
+        where r.id = pending.request_id
+      ),
+      events as (
+        select distinct on (((e ->> 'DayID')::bigint))
+          (e ->> 'DayID')::bigint as nztr_day_id,
+          (
+            to_timestamp(((regexp_match(e ->> 'RaceDate', '[0-9]+'))[1])::bigint / 1000)
+            at time zone 'Pacific/Auckland'
+          )::date as meeting_date,
+          coalesce(nullif(e ->> 'TrackAppName', ''), nullif(e ->> 'Racecourse', ''), 'TBC') as track,
+          nullif(e ->> 'Club', '') as club,
+          coalesce(nullif(e ->> 'WebMeetingType', ''), nullif(e ->> 'WebDateType', '')) as meeting_type
+        from raw, jsonb_array_elements(raw.arr) as e
+        where e ->> 'DayID' is not null
+          and e ->> 'RaceDate' ~ '[0-9]+'
+        order by ((e ->> 'DayID')::bigint)
+      ),
+      ins as (
+        insert into public.meetings (nztr_day_id, meeting_date, track, club, meeting_type, source)
+        select nztr_day_id, meeting_date, track, club, meeting_type, 'loveracing'
+        from events
+        on conflict (nztr_day_id) do update set
+          meeting_date = excluded.meeting_date,
+          track = excluded.track,
+          club = excluded.club,
+          meeting_type = excluded.meeting_type,
+          updated_at = now()
+        returning 1
+      )
+      select count(*) into upserted from ins;
+
+      update public.loveracing_sync_state
+      set processed_at = now(), meetings_upserted = upserted
+      where id = pending.id;
+    elsif now() - pending.requested_at > interval '6 hours' then
+      update public.loveracing_sync_state
+      set processed_at = now(), meetings_upserted = 0
+      where id = pending.id;
+    end if;
+  end loop;
+
+  select net.http_post(
+    url := 'https://loveracing.nz/ServerScript/RaceInfo.aspx/GetCalendarEvents',
+    body := jsonb_build_object(
+      'start', to_char(nz_today, 'DD-Mon-YYYY'),
+      'end', to_char(nz_today + interval '3 months', 'DD-Mon-YYYY')
+    ),
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    timeout_milliseconds := 20000
+  ) into req_id;
+
+  insert into public.loveracing_sync_state (request_id) values (req_id);
+
+  delete from public.loveracing_sync_state
+  where processed_at is not null and processed_at < now() - interval '7 days';
+end;
+$$;
+
+revoke execute on function public.sync_loveracing() from public, anon, authenticated;
+
+select cron.schedule(
+  'loveracing-hourly-sync',
+  '5 * * * *',
+  $$select public.sync_loveracing()$$
+);
+
 -- ------------------------------------------------------------
 -- 7. Realtime for chat
 -- ------------------------------------------------------------

@@ -10,6 +10,11 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: {
+        // Never serve stale data from the Next.js fetch cache.
+        fetch: (input: any, init?: any) =>
+          fetch(input, { ...init, cache: "no-store" }),
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();
