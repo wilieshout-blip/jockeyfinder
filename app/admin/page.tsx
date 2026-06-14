@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty";
 import { Avatar } from "@/components/ui/avatar";
 import { approveUser, rejectUser, markAgentPaid } from "./actions";
+import { switchToTestUser } from "./test-actions";
 import { SyncButton } from "./sync-button";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,13 @@ async function count(admin: ReturnType<typeof createAdminClient>, table: string,
   const { count: c } = await q;
   return c || 0;
 }
+
+const TEST_ACCOUNTS = [
+  { email: "test-jockey@jockeyfinder.com", label: "Jockey", icon: "🏇", bg: "bg-turf-50 border-turf-200 hover:bg-turf-100" },
+  { email: "test-trainer@jockeyfinder.com", label: "Trainer", icon: "📋", bg: "bg-blue-50 border-blue-200 hover:bg-blue-100" },
+  { email: "test-owner@jockeyfinder.com", label: "Owner", icon: "🏆", bg: "bg-amber-50 border-amber-200 hover:bg-amber-100" },
+  { email: "test-agent@jockeyfinder.com", label: "Agent", icon: "🤝", bg: "bg-violet-50 border-violet-200 hover:bg-violet-100" },
+];
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -71,7 +79,6 @@ export default async function AdminPage() {
     .eq("verification_status", "pending")
     .order("created_at", { ascending: true });
 
-  // Short lived links so the admin can eyeball uploaded IDs.
   const idDocLinks = new Map<string, string>();
   const pendingWithDocs = [...(pendingJockeys || []), ...(pendingAgents || [])].filter(
     (p: any) => p.id_document_path
@@ -198,6 +205,43 @@ export default async function AdminPage() {
         Approvals, registry checks and the race calendar feed.
       </SectionHeading>
 
+      <section>
+        <div className="mb-4 flex items-center gap-3">
+          <h2 className="font-display text-lg font-semibold text-ink">
+            Test accounts
+          </h2>
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+            Dev only
+          </span>
+        </div>
+        <p className="mb-4 text-sm text-zinc-500">
+          Click any card to instantly sign in as that test user via a one-time link.
+          Your admin session ends — log back in as{" "}
+          <span className="font-medium text-ink">wilieshout@gmail.com</span> to return here.
+          Password for manual login: <span className="font-mono font-medium text-ink">TestPass123!</span>
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {TEST_ACCOUNTS.map((account) => (
+            <form key={account.email} action={switchToTestUser}>
+              <input type="hidden" name="email" value={account.email} />
+              <button
+                type="submit"
+                className={cn(
+                  "w-full rounded-2xl border p-4 text-left transition-all",
+                  account.bg
+                )}
+              >
+                <span className="mb-2 block text-2xl">{account.icon}</span>
+                <p className="text-sm font-semibold text-ink">
+                  Test {account.label}
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-500">Sign in →</p>
+              </button>
+            </form>
+          ))}
+        </div>
+      </section>
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           ["Jockeys", jockeys],
@@ -321,4 +365,4 @@ export default async function AdminPage() {
       </section>
     </div>
   );
-}
+   }
