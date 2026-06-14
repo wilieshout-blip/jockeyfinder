@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/ui/empty";
 import { DateBlock } from "@/components/racing";
 import { QuickWeightForm } from "@/components/quick-weight-form";
 import { IdUploadForm } from "@/components/id-upload-form";
+import { HorsePreloadWizard } from "@/components/horse-preload-wizard";
+import { TrainerHorses } from "@/components/trainer-horses";
 import {
   REQUEST_STATUS_STYLES,
   cn,
@@ -121,6 +123,31 @@ export default async function DashboardPage() {
         .returns<Profile[]>();
       managed = data ?? [];
     }
+  }
+
+
+  // Trainer: horse links
+  let trainerHorseLinks: any[] = [];
+  if (profile.role === "trainer") {
+    const { data } = await supabase
+      .from("trainer_horse_links")
+      .select("id, status, horses(id, name, sire, dam, nztr_trainer_name)")
+      .eq("trainer_id", user.id)
+      .in("status", ["pending", "confirmed"])
+      .order("created_at", { ascending: false });
+    trainerHorseLinks = data ?? [];
+  }
+
+  // Owner: horse links
+  let ownerHorseLinks: any[] = [];
+  if (profile.role === "owner") {
+    const { data } = await supabase
+      .from("owner_horse_links")
+      .select("id, status, horses(id, name, sire, dam, nztr_trainer_name)")
+      .eq("owner_id", user.id)
+      .in("status", ["pending", "confirmed"])
+      .order("created_at", { ascending: false });
+    ownerHorseLinks = data ?? [];
   }
 
   return (
