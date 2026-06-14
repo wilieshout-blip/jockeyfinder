@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * Marks a jockey attending or not attending a meeting.
- * Saves a snapshot of weight and claim at the moment attendance is marked.
- * Agents pass the managed jockey's id and profile.
+ * When marking attending, also joins (or creates) the meeting group chat.
  */
 export function AttendanceToggle({
   meetingId,
@@ -35,7 +34,7 @@ export function AttendanceToggle({
     const supabase = createClient();
     const next = !attending;
 
-    const { error } = await supabase.from("meeting_attendance").upsert(
+    const { error: upsertError } = await supabase.from("meeting_attendance").upsert(
       {
         meeting_id: meetingId,
         user_id: jockeyId,
@@ -47,11 +46,26 @@ export function AttendanceToggle({
       { onConflict: "meeting_id,user_id" }
     );
 
-    setBusy(false);
-    if (error) {
-      setError(error.message);
+    if (upsertError) {
+      setBusy(false);
+      setError(upsertError.message);
       return;
     }
+
+    // When marking as attending, join (or create) the meeting group chat
+    if (next) {
+      try {
+        await fetch("/api/chats/join-meeting-group", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meetingId, userId: jockeyId }),
+        });
+      } catch {
+        // Non-fatal: attendance is saved; chat join failure doesn't block the UI
+      }
+    }
+
+    setBusy(false);
     router.refresh();
   }
 
