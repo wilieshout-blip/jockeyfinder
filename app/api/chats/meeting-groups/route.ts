@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Auto-creates a group chat thread for each meeting happening tomorrow.
+// Auto-creates a meeting_group chat thread for each meeting happening tomorrow.
 // Called by Vercel cron at 06:00 UTC daily.
 
 export async function GET(request: Request) {
@@ -22,8 +22,8 @@ export async function GET(request: Request) {
 
   const { data: meetings, error: meetingsError } = await supabase
     .from("meetings")
-    .select("id, venue, race_date")
-    .eq("race_date", tomorrowStr);
+    .select("id, track, meeting_date")
+    .eq("meeting_date", tomorrowStr);
 
   if (meetingsError) {
     return NextResponse.json({ error: meetingsError.message }, { status: 500 });
@@ -38,33 +38,31 @@ export async function GET(request: Request) {
 
   for (const meeting of meetings) {
     try {
-      // Check if a group thread already exists for this meeting
+      // Skip if a meeting_group thread already exists for this meeting
       const { data: existing } = await supabase
         .from("chat_threads")
         .select("id")
         .eq("meeting_id", meeting.id)
-        .eq("is_group", true)
+        .eq("type", "meeting_group")
         .maybeSingle();
 
       if (existing) continue;
 
-      // Find all jockeys attending this meeting
+      // Find all attendees confirmed for this meeting
       const { data: attendees, error: attendeesError } = await supabase
         .from("meeting_attendance")
-        .select("jockey_id")
-        .eq("meeting_id", meeting.id);
+        .select("user_id")
+        .eq("meeting_id", meeting.id)
+        .eq("attending", true);
 
       if (attendeesError || !attendees || attendees.length === 0) continue;
 
       // Create the group thread
-      const threadTitle = `${meeting.venue} – ${new Date(meeting.race_date).toLocaleDateString("en-NZ", { weekday: "short", day: "numeric", month: "short" })}`;
-
       const { data: thread, error: threadError } = await supabase
         .from("chat_threads")
         .insert({
-          title: threadTitle,
+          type: "meeting_group",
           meeting_id: meeting.id,
-          is_group: true,
         })
         .select("id")
         .single();
@@ -74,10 +72,10 @@ export async function GET(request: Request) {
         continue;
       }
 
-      // Add all attending jockeys as participants
+      // Add all attendees as participants
       const participants = attendees.map((a) => ({
         thread_id: thread.id,
-        user_id: a.jockey_id,
+        user_id: a.user_id,
       }));
 
       const { error: participantsError } = await supabase
@@ -99,4 +97,4 @@ export async function GET(request: Request) {
     meetings: meetings.length,
     errors: errors.length > 0 ? errors : undefined,
   });
-  }
+}
