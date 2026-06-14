@@ -165,3 +165,40 @@ export async function fetchAndSyncMeetingResults(
     const res = await fetch(url, {
       headers: { "User-Agent": "JockeyFinder/1.0 (+https://www.jockeyfinder.com)" },
       next: { revalidate: 0 },
+    });
+    if (!res.ok) return { ok: false, results: 0, error: "LoveRacing " + res.status };
+    html = await res.text();
+  } catch (e: unknown) {
+    return { ok: false, results: 0, error: String(e) };
+  }
+
+  const parsed = parseMeetingResults(html);
+  if (parsed.length === 0) return { ok: true, results: 0 };
+
+  const admin = createAdminClient();
+
+  const rows = parsed.map((r) => ({
+    meeting_id: meetingId,
+    nztr_day_id: nztrDayId,
+    race_number: r.race_number,
+    race_name: r.race_name,
+    distance_m: r.distance_m,
+    prize_total: r.prize_total,
+    position: r.position,
+    horse_name: r.horse_name,
+    jockey_name: r.jockey_name,
+    trainer_name: r.trainer_name,
+    win_dividend: r.win_dividend,
+    place_dividend: r.place_dividend,
+    race_date: raceDate,
+    synced_at: new Date().toISOString(),
+  }));
+
+  const { error } = await admin
+    .from("race_results")
+    .upsert(rows, { onConflict: "nztr_day_id,race_number,position" });
+
+  if (error) return { ok: false, results: 0, error: error.message };
+
+  return { ok: true, results: rows.length };
+}
