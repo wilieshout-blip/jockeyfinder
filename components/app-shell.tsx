@@ -45,6 +45,51 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // ── Notification counts ─────────────────────────────────────────────────────
+  // pendingRequestCount: requests awaiting MY action (I didn't create them)
+  // unreadThreadCount: threads where last message in the past 7 days is from
+  //                   someone else (proxy for "unread")
+  let pendingRequestCount = 0;
+  let unreadThreadCount = 0;
+
+  if (profile && !paywallActive) {
+    const [reqResult, participantRows] = await Promise.all([
+      supabase
+        .from("ride_requests")
+        .select("id", { count: "exact", head: true })
+        .or(`trainer_id.eq.${user.id},jockey_id.eq.${user.id}`)
+        .neq("created_by", user.id)
+        .eq("status", "requested"),
+      supabase
+        .from("chat_participants")
+        .select("thread_id")
+        .eq("user_id", user.id),
+    ]);
+
+    pendingRequestCount = reqResult.count ?? 0;
+
+    const threadIds = (participantRows.data ?? []).map((r) => r.thread_id);
+    if (threadIds.length > 0) {
+      const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: msgs } = await supabase
+        .from("messages")
+        .select("thread_id, sender_id")
+        .in("thread_id", threadIds)
+        .gte("created_at", cutoff)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const seen = new Set<string>();
+      for (const m of msgs ?? []) {
+        if (!seen.has(m.thread_id)) {
+          seen.add(m.thread_id);
+          if (m.sender_id !== user.id) unreadThreadCount++;
+        }
+      }
+    }
+  }
+  // ───────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen bg-paper">
       <AppNav
@@ -52,6 +97,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         role={profile?.role ?? "owner"}
         photoUrl={profile?.profile_photo_url ?? null}
         isAdmin={isAdmin}
+        requestBadge={pendingRequestCount}
+        messageBadge={unreadThreadCount}
       />
       {managedJockeys.length > 0 && (
         <AgentBar jockeys={managedJockeys} />
@@ -77,4 +124,4 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       )}
     </div>
   );
-}
+      }
