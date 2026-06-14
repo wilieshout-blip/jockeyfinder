@@ -3,6 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { formatMeetingDate } from "@/lib/utils";
+import {
+  emailNewRequest,
+  emailRequestAccepted,
+  emailRequestDeclined,
+  emailRideAssigned,
+} from "@/lib/email";
 import type { Profile, RideRequest } from "@/lib/types";
 
 /**
@@ -69,6 +77,38 @@ export async function createRideRequest(formData: FormData) {
     );
   }
 
+  // ── Email the counterpart about the new request ───────────────────────────
+  try {
+    const admin = createAdminClient();
+    const recipientId = me.role === "trainer" ? jockeyId : trainerId;
+    const [recipResult, meetResult] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", recipientId)
+        .single(),
+      admin
+        .from("meetings")
+        .select("track, meeting_date")
+        .eq("id", meetingId)
+        .single(),
+    ]);
+    if (recipResult.data?.email) {
+      await emailNewRequest({
+        to: recipResult.data.email,
+        senderName: me.full_name ?? user.email ?? "Someone",
+        horseName: horseName || null,
+        track: meetResult.data?.track ?? null,
+        meetingDate: meetResult.data?.meeting_date
+          ? formatMeetingDate(meetResult.data.meeting_date)
+          : null,
+      });
+    }
+  } catch (err) {
+    console.error("[email] createRideRequest notification failed:", err);
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   revalidatePath("/dashboard/requests");
   redirect("/dashboard/requests?created=1");
 }
@@ -113,7 +153,10 @@ export async function updateRequestStatus(formData: FormData) {
   if (next === "assigned" && !isTrainer) {
     redirect("/dashboard/requests?error=onlytrainer");
   }
-  if ((next === "accepted" || next === "declined") && request.created_by === user.id) {
+  if (
+    (next === "accepted" || next === "declined") &&
+    request.created_by === user.id
+  ) {
     redirect("/dashboard/requests?error=ownrequest");
   }
   if (next === "cancelled" && !isTrainer && !isJockeySide) {
@@ -166,6 +209,82 @@ export async function updateRequestStatus(formData: FormData) {
       }
     }
   }
+
+  // ── Email the relevant party about the status change ──────────────────────
+  if (["accepted", "declined", "assigned"].includes(next)) {
+    try {
+      const admin = createAdminClient();
+
+      const [actorResult, meetResult] = await Promise.all([
+        admin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single(),
+        request.meeting_id
+          ? admin
+              .from("meetings")
+              .select("track, meeting_date")
+              .eq("id", request.meeting_id)
+              .single()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      const actorName = actorResult.data?.full_name ?? "Someone";
+      const meetData = (meetResult as any).data;
+      const sharedOpts = {
+        horseName: request.horse_name ?? null,
+        track: meetData?.track ?? null,
+        meetingDate: meetData?.meeting_date
+          ? formatMeetingDate(meetData.meeting_date)
+          : null,
+      };
+
+      if (next === "accepted") {
+        const { data: trainerProfile } = await admin
+          .from("profiles")
+          .select("email")
+          .eq("id", request.trainer_id)
+          .single();
+        if (trainerProfile?.email) {
+          await emailRequestAccepted({
+            to: trainerProfile.email,
+            jockeyName: actorName,
+            ...sharedOpts,
+          });
+        }
+      } else if (next === "declined") {
+        const { data: creatorProfile } = await admin
+          .from("profiles")
+          .select("email")
+          .eq("id", request.created_by)
+          .single();
+        if (creatorProfile?.email) {
+          await emailRequestDeclined({
+            to: creatorProfile.email,
+            jockeyName: actorName,
+            ...sharedOpts,
+          });
+        }
+      } else if (next === "assigned") {
+        const { data: jockeyProfile } = await admin
+          .from("profiles")
+          .select("email")
+          .eq("id", request.jockey_id)
+          .single();
+        if (jockeyProfile?.email) {
+          await emailRideAssigned({
+            to: jockeyProfile.email,
+            trainerName: actorName,
+            ...sharedOpts,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[email] updateRequestStatus notification failed:", err);
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   revalidatePath("/dashboard/requests");
   revalidatePath("/dashboard/messages");
