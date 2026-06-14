@@ -38,6 +38,7 @@ export interface Meeting {
   club: string | null;
   source: string | null;
   meeting_type: string | null;
+  is_jumps: boolean;
 }
 
 export interface PublicAttendance {
