@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-// Auto-creates a meeting_group chat thread for each meeting happening tomorrow.
+// Auto-creates a meeting_group chat thread for each meeting happening tomorrow (NZ time).
 // Called by Vercel cron at 06:00 UTC daily.
 
 export async function GET(request: Request) {
@@ -13,12 +13,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  // Use admin client — cron has no user session so the user-level client
+  // would fail RLS checks on chat_threads and chat_participants inserts.
+  const supabase = createAdminClient();
 
-  // Find meetings happening tomorrow
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split("T")[0];
+  // Calculate tomorrow in NZ time (Pacific/Auckland).
+  // The cron fires at 06:00 UTC which is 18:00-19:00 NZ, so we calculate
+  // using the NZ local date explicitly to avoid off-by-one errors.
+  const nowNZ = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Pacific/Auckland" })
+  );
+  const tomorrowNZ = new Date(nowNZ);
+  tomorrowNZ.setDate(nowNZ.getDate() + 1);
+  const yyyy = tomorrowNZ.getFullYear();
+  const mm = String(tomorrowNZ.getMonth() + 1).padStart(2, "0");
+  const dd = String(tomorrowNZ.getDate()).padStart(2, "0");
+  const tomorrowStr = `${yyyy}-${mm}-${dd}`;
 
   const { data: meetings, error: meetingsError } = await supabase
     .from("meetings")
