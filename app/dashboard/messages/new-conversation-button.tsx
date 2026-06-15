@@ -86,8 +86,8 @@ export function NewConversationButton() {
                         >
                         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                                   <path d="M12 5v14M5 12h14" />
-                        </svg>svg>
-                </button>button>
+                        </svg>
+                </button>
         
           {open ? (
                   <div
@@ -98,7 +98,7 @@ export function NewConversationButton() {
                             <div className="p-3">
                                         <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-400">
                                                       New conversation
-                                        </p>p>
+                                        </p>
                                         <div className="relative">
                                                       <input
                                                                         ref={inputRef}
@@ -116,10 +116,10 @@ export function NewConversationButton() {
                                                                 >
                                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                              </svg>svg>
+                                              </svg>
                                             ) : null}
-                                        </div>div>
-                            </div>div>
+                                        </div>
+                            </div>
                   
                     {results.length > 0 ? (
                                           <ul className="max-h-72 overflow-y-auto border-t border-line pb-2" role="listbox">
@@ -134,34 +134,33 @@ export function NewConversationButton() {
                                                                                                   <div className="min-w-0 flex-1">
                                                                                                                         <p className="truncate text-sm font-medium text-ink">
                                                                                                                           {u.full_name ?? "Unknown"}
-                                                                                                                          </p>p>
+                                                                                                                          </p>
                                                                                                     {u.role ? (
                                                                                                                             <p className="text-xs capitalize text-zinc-500">
                                                                                                                               {ROLE_LABELS[u.role] ?? u.role}
-                                                                                                                              </p>p>
+                                                                                                                              </p>
                                                                                                                           ) : null}
-                                                                                                    </div>div>
+                                                                                                    </div>
                                                                                 {pending ? null : (
                                                                                                                           <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-zinc-300" fill="none" stroke="currentColor" strokeWidth="2">
                                                                                                                                                   <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                                                                                                                            </svg>svg>
+                                                                                                                            </svg>
                                                                                                   )}
-                                                                              </button>button>
-                                                            </li>li>
+                                                                              </button>
+                                                            </li>
                                                           ))}
-                                          </ul>ul>
+                                          </ul>
                                         ) : query.trim().length >= 2 && !loading ? (
                                           <p className="border-t border-line px-4 py-4 text-sm text-zinc-500">
                                                         No users found for "{query}"
-                                          </p>p>
+                                          </p>
                                         ) : query.trim().length > 0 && query.trim().length < 2 ? (
                                           <p className="border-t border-line px-4 py-4 text-sm text-zinc-400">
                                                         Type at least 2 characters to search
-                                          </p>p>
+                                          </p>
                                         ) : null}
-                  </div>div>
+                  </div>
                 ) : null}
-        </div>div>
+        </div>
       );
 }
-</button>
