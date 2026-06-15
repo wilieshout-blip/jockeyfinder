@@ -42,25 +42,31 @@ export function TrainerCards({ trainers, registry }: Props) {
           ? registryByName.get(t.full_name.toLowerCase())
           : undefined;
 
-        // Show NZTR location if it differs from the profile base_region
+        // Show NZTR location only if it differs from the profile base_region
         const nztrLocation =
           reg?.location && reg.location !== t.base_region
             ? reg.location
             : null;
+
+        const hasLocationDetail =
+          t.base_region ||
+          nztrLocation ||
+          (t.country && t.country !== "NZ" && t.country !== "New Zealand");
 
         return (
           <article
             key={t.id}
             className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-card transition-shadow hover:shadow-lift"
           >
-            {/* Tappable header */}
+            {/* Tappable header — whole collapsed surface is one button */}
             <button
               type="button"
               onClick={() => setOpenId(isOpen ? null : t.id)}
-              className="flex w-full items-start gap-4 p-5 text-left"
+              className="flex w-full cursor-pointer items-start gap-4 p-5 text-left transition-colors hover:bg-mist/60 active:bg-mist"
             >
               <Avatar src={t.profile_photo_url} name={t.full_name} size="lg" />
               <div className="min-w-0 flex-1">
+                {/* Name + verified badge + rotating chevron */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
@@ -69,6 +75,7 @@ export function TrainerCards({ trainers, registry }: Props) {
                     <VerifiedBadge />
                   </div>
                   <svg
+                    aria-hidden="true"
                     className={cn(
                       "mt-1 h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200",
                       isOpen && "rotate-180"
@@ -85,18 +92,23 @@ export function TrainerCards({ trainers, registry }: Props) {
                     />
                   </svg>
                 </div>
+
+                {/* Region */}
                 {t.base_region ? (
                   <p className="mt-1 text-sm text-zinc-500">{t.base_region}</p>
                 ) : null}
+
+                {/* Collapsed-only: bio preview + tap hint */}
+                {!isOpen && (
+                  <div className="mt-2 space-y-1">
+                    {t.bio ? (
+                      <p className="line-clamp-2 text-sm text-zinc-600">{t.bio}</p>
+                    ) : null}
+                    <p className="text-xs text-zinc-400">Tap to expand</p>
+                  </div>
+                )}
               </div>
             </button>
-
-            {/* Collapsed: bio preview */}
-            {!isOpen && t.bio ? (
-              <p className="px-5 pb-5 -mt-1 line-clamp-2 text-sm text-zinc-600">
-                {t.bio}
-              </p>
-            ) : null}
 
             {/* Expanded panel */}
             {isOpen && (
@@ -107,32 +119,39 @@ export function TrainerCards({ trainers, registry }: Props) {
                   <p className="text-sm italic text-zinc-400">No bio added yet.</p>
                 )}
 
-                <div className="space-y-1 text-sm">
-                  {t.base_region ? (
-                    <p className="text-zinc-600">
-                      <span className="font-medium text-zinc-800">Based: </span>
-                      {t.base_region}
-                    </p>
-                  ) : null}
-                  {nztrLocation ? (
-                    <p className="text-zinc-600">
-                      <span className="font-medium text-zinc-800">
-                        NZTR location:{" "}
-                      </span>
-                      {nztrLocation}
-                    </p>
-                  ) : null}
-                  {t.country &&
-                  t.country !== "NZ" &&
-                  t.country !== "New Zealand" ? (
-                    <p className="text-zinc-600">
-                      <span className="font-medium text-zinc-800">Country: </span>
-                      {t.country}
-                    </p>
-                  ) : null}
-                </div>
+                {/* Location info block */}
+                {hasLocationDetail ? (
+                  <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-white text-sm">
+                    {t.base_region ? (
+                      <div className="flex items-center gap-3 px-3 py-2">
+                        <span className="w-28 shrink-0 text-xs text-zinc-400">
+                          Based
+                        </span>
+                        <span className="text-zinc-700">{t.base_region}</span>
+                      </div>
+                    ) : null}
+                    {nztrLocation ? (
+                      <div className="flex items-center gap-3 px-3 py-2">
+                        <span className="w-28 shrink-0 text-xs text-zinc-400">
+                          NZTR location
+                        </span>
+                        <span className="text-zinc-700">{nztrLocation}</span>
+                      </div>
+                    ) : null}
+                    {t.country &&
+                    t.country !== "NZ" &&
+                    t.country !== "New Zealand" ? (
+                      <div className="flex items-center gap-3 px-3 py-2">
+                        <span className="w-28 shrink-0 text-xs text-zinc-400">
+                          Country
+                        </span>
+                        <span className="text-zinc-700">{t.country}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
-                <div className="flex justify-end">
+                <div className="flex justify-end pt-1">
                   <Link
                     href={`/trainers/${t.id}`}
                     className="text-sm font-medium text-turf-700 hover:underline"
