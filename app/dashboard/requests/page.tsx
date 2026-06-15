@@ -8,6 +8,12 @@ import { DateBlock } from "@/components/racing";
 import { cn, REQUEST_STATUS_STYLES, formatDateTime } from "@/lib/utils";
 import type { Meeting, Profile, RideRequest } from "@/lib/types";
 
+interface Race {
+  id: string;
+  race_number: number;
+  name: string;
+}
+
 export default async function RequestsPage({
   searchParams,
 }: {
@@ -61,6 +67,19 @@ export default async function RequestsPage({
       .in("id", meetingIds)
       .returns<Meeting[]>();
     for (const m of data ?? []) meetings.set(m.id, m);
+  }
+
+  // Races referenced by these requests (to show race name alongside number).
+  const raceIds = Array.from(
+    new Set(all.map((r) => r.race_id).filter(Boolean))
+  ) as string[];
+  const races = new Map<string, Race>();
+  if (raceIds.length > 0) {
+    const { data } = await supabase
+      .from("races")
+      .select("id, race_number, name")
+      .in("id", raceIds);
+    for (const race of data ?? []) races.set(race.id, race as Race);
   }
 
   // Threads for assigned requests so we can deep link to the chat.
@@ -122,12 +141,20 @@ export default async function RequestsPage({
         <div className="space-y-3">
           {all.map((r) => {
             const meeting = r.meeting_id ? meetings.get(r.meeting_id) : null;
+            const race = r.race_id ? races.get(r.race_id) : null;
             const otherId = r.trainer_id === user.id ? r.jockey_id : r.trainer_id;
             const otherName = names.get(otherId) ?? "Member";
             const otherRole = r.trainer_id === user.id ? "Jockey" : "Trainer";
             const iCreated = r.created_by === user.id;
             const iAmTrainer = r.trainer_id === user.id;
             const threadId = threadByRequest.get(r.id);
+
+            // Race label: prefer name from scraped races table; fall back to number only.
+            const raceLabel = race
+              ? `R${race.race_number} · ${race.name}`
+              : r.race_number
+                ? `R${r.race_number}`
+                : null;
 
             return (
               <article
@@ -140,7 +167,7 @@ export default async function RequestsPage({
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-ink">
                         {r.horse_name || "Ride request"}
-                        {r.race_number ? ` · R${r.race_number}` : ""}
+                        {raceLabel ? ` · ${raceLabel}` : ""}
                       </p>
                       <span
                         className={cn(
