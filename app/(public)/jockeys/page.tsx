@@ -19,16 +19,34 @@ export const metadata: Metadata = {
 export default async function JockeysPage() {
   const supabase = await createClient();
 
-  const { data: jockeys } = await supabase
+  const { data: jockeysRaw } = await supabase
     .from("public_profiles")
     .select(
-      "id, full_name, profile_photo_url, bio, licence_type, apprentice, apprentice_claim, riding_weight, base_region"
+      "id, full_name, profile_photo_url, bio, licence_type, apprentice, apprentice_claim, riding_weight, base_region, phone"
     )
     .eq("role", "jockey")
-    .order("full_name", { ascending: true })
-    .returns<DirectoryJockey[]>();
+    .order("full_name", { ascending: true });
 
-  // Season stats — keyed by jockey_name for matching
+  // Agent phones: jockey_id -> agent phone
+  const jockeyIds = (jockeysRaw ?? []).map((j: any) => j.id);
+  const agentPhoneMap: Record<string, string> = {};
+  if (jockeyIds.length > 0) {
+    const { data: agentLinks } = await supabase
+      .from("agent_jockeys")
+      .select("jockey_id, agent:profiles!agent_id(phone)")
+      .in("jockey_id", jockeyIds);
+    for (const link of agentLinks ?? []) {
+      const agentPhone = (link as any).agent?.phone;
+      if (agentPhone) agentPhoneMap[link.jockey_id] = agentPhone;
+    }
+  }
+
+  const jockeys: DirectoryJockey[] = (jockeysRaw ?? []).map((j: any) => ({
+    ...j,
+    agent_phone: agentPhoneMap[j.id] ?? null,
+  }));
+
+  // Season stats - keyed by jockey_name for matching
   const { data: statsRows } = await supabase
     .from("jockey_season_stats")
     .select("jockey_name, total_rides, wins, places, win_pct")
@@ -42,14 +60,14 @@ export default async function JockeysPage() {
     .gte("meeting_date", nzToday())
     .lte("meeting_date", nzDatePlusDays(30));
 
-  const meetingIds = (upcoming ?? []).map((m) => m.id);
+  const meetingIds = (upcoming ?? []).map((m: any) => m.id);
   if (meetingIds.length > 0) {
     const { data: rows } = await supabase
       .from("public_meeting_attendance")
       .select("meeting_id, jockey_id")
       .in("meeting_id", meetingIds);
     for (const r of rows ?? []) {
-      counts[r.jockey_id] = (counts[r.jockey_id] ?? 0) + 1;
+      counts[(r as any).jockey_id] = (counts[(r as any).jockey_id] ?? 0) + 1;
     }
   }
 
@@ -64,11 +82,11 @@ export default async function JockeysPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-zinc-600">
           Every jockey here has been verified by the JockeyFinder team. Tap a
-          card to see stats and details.
+          card to see stats, contact info, and details.
         </p>
       </div>
 
-      {jockeys && jockeys.length > 0 ? (
+      {jockeys.length > 0 ? (
         <JockeyCards
           jockeys={jockeys}
           stats={statsRows ?? []}
