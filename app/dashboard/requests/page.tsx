@@ -147,7 +147,6 @@ export default async function RequestsPage({
             const otherName = otherId ? (names.get(otherId) ?? "Member") : null;
             const otherRole = iAmTrainer ? "Jockey" : "Trainer";
             const iCreated = r.created_by === user.id;
-            const iAmTrainer = r.trainer_id === user.id;
             const threadId = threadByRequest.get(r.id);
 
             // Race label: prefer name from scraped races table; fall back to number only.
