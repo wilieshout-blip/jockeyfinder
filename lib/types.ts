@@ -58,7 +58,7 @@ export interface RideRequest {
   id: string;
   meeting_id: string | null;
   race_id: string | null;
-  trainer_id: string;
+  trainer_id: string | null;
   jockey_id: string;
   horse_name: string | null;
   race_number: number | null;
