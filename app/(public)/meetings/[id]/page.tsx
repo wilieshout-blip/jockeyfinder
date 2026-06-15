@@ -9,6 +9,8 @@ import { DateBlock, JockeyChip } from "@/components/racing";
 import { Badge } from "@/components/ui/badge";
 import { cn, nzToday } from "@/lib/utils";
 import type { PublicAttendance } from "@/lib/types";
+import { RaceDayAccordions } from "./race-day-accordions";
+import type { RaceEntryData, RaceData } from "./race-day-accordions";
 
 interface MeetingRow {
   id: string;
@@ -20,13 +22,11 @@ interface MeetingRow {
   is_jumps: boolean;
 }
 
-interface RaceEntry {
+interface RaceRow {
   id: string;
   race_number: number;
-  horse_name: string;
-  jockey_name: string | null;
-  trainer_name: string | null;
-  barrier: number | null;
+  name: string | null;
+  start_time: string | null;
 }
 
 interface RaceResult {
@@ -55,6 +55,25 @@ export default async function MeetingDetailPage({
 }) {
   const supabase = await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let userRole: "jockey" | "agent" | "trainer" | "owner" | null = null;
+  let userId: string | null = null;
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, role")
+      .eq("id", user.id)
+      .single();
+    if (profile) {
+      userRole = profile.role as typeof userRole;
+      userId = profile.id;
+    }
+  }
+
   const { data: meeting } = await supabase
     .from("meetings")
     .select("id, nztr_day_id, meeting_date, track, club, meeting_type, is_jumps")
@@ -75,16 +94,31 @@ export default async function MeetingDetailPage({
 
   const jockeys = attendance ?? [];
 
-  let entries: RaceEntry[] = [];
+  let racesFromDb: RaceRow[] = [];
+  if (meeting.nztr_day_id) {
+    const { data } = await supabase
+      .from("races")
+      .select("id, race_number, name, start_time")
+      .eq("nztr_day_id", meeting.nztr_day_id)
+      .order("race_number", { ascending: true })
+      .returns<RaceRow[]>();
+    racesFromDb = data ?? [];
+  }
+
+  let entries: RaceEntryData[] = [];
   if (!isPast && meeting.nztr_day_id) {
+    const raceIdMap = new Map(racesFromDb.map((r) => [r.race_number, r.id]));
     const { data } = await supabase
       .from("race_entries")
       .select("id, race_number, horse_name, jockey_name, trainer_name, barrier")
       .eq("nztr_day_id", meeting.nztr_day_id)
       .order("race_number", { ascending: true })
-      .order("barrier", { ascending: true })
-      .returns<RaceEntry[]>();
-    entries = data ?? [];
+      .order("barrier", { ascending: true, nullsFirst: false })
+      .returns<Omit<RaceEntryData, "race_id">[]>();
+    entries = (data ?? []).map((e) => ({
+      ...e,
+      race_id: raceIdMap.get(e.race_number) ?? null,
+    }));
   }
 
   let results: RaceResult[] = [];
@@ -99,27 +133,46 @@ export default async function MeetingDetailPage({
     results = data ?? [];
   }
 
-  const entriesByRace = new Map<number, RaceEntry[]>();
+  const requestedHorses: Record<number, Set<string>> = {};
+  if (userId && (userRole === "jockey" || userRole === "agent")) {
+    const { data: myRequests } = await supabase
+      .from("ride_requests")
+      .select("race_number, horse_name")
+      .eq("meeting_id", meeting.id)
+      .eq("jockey_id", userId)
+      .not("status", "eq", "cancelled");
+    for (const req of myRequests ?? []) {
+      if (req.race_number && req.horse_name) {
+        if (!requestedHorses[req.race_number]) requestedHorses[req.race_number] = new Set();
+        requestedHorses[req.race_number].add(req.horse_name);
+      }
+    }
+  }
+
+  const raceDataList: RaceData[] = racesFromDb.map((r) => ({
+    race_number: r.race_number,
+    name: r.name,
+    start_time: r.start_time,
+    race_id: r.id,
+  }));
+
+  const entriesByRace: Record<number, RaceEntryData[]> = {};
   for (const e of entries) {
-    const list = entriesByRace.get(e.race_number) ?? [];
-    list.push(e);
-    entriesByRace.set(e.race_number, list);
+    if (!entriesByRace[e.race_number]) entriesByRace[e.race_number] = [];
+    entriesByRace[e.race_number].push(e);
   }
 
   const resultsByRace = new Map<number, { name: string | null; distanceM: number | null; prize: number | null; rows: RaceResult[] }>();
   for (const r of results) {
-    const existing = resultsByRace.get(r.race_number);
-    if (existing) {
-      existing.rows.push(r);
-    } else {
-      resultsByRace.set(r.race_number, { name: r.race_name, distanceM: r.distance_m, prize: r.prize_total, rows: [r] });
-    }
+    const ex = resultsByRace.get(r.race_number);
+    if (ex) { ex.rows.push(r); }
+    else { resultsByRace.set(r.race_number, { name: r.race_name, distanceM: r.distance_m, prize: r.prize_total, rows: [r] }); }
   }
 
-  const raceNumbers = [...new Set([...Array.from(entriesByRace.keys()), ...Array.from(resultsByRace.keys())])].sort((a, b) => a - b);
-  const hasRaceData = raceNumbers.length > 0;
-  const showResults = isPast || isToday;
+  const hasEntries = entries.length > 0;
+  const hasResults = results.length > 0;
   const meetingLabel = meeting.meeting_type === "T" ? "Trial Day" : "Race Day";
+  const resultRaceNums = [...resultsByRace.keys()].sort((a, b) => a - b);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
@@ -146,27 +199,31 @@ export default async function MeetingDetailPage({
 
       <div className="mt-10 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
-            {showResults && results.length > 0 ? "Results" : "Race card"}
-          </h2>
-          {hasRaceData ? (
-            raceNumbers.map((raceNum) => {
-              const race = resultsByRace.get(raceNum);
-              const raceEntries = entriesByRace.get(raceNum) ?? [];
-              const hasResults = race && race.rows.length > 0;
-              return (
-                <div key={raceNum} className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
-                  <div className="flex items-center justify-between border-b border-line bg-mist px-4 py-3">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Race {raceNum}</p>
-                      <p className="font-semibold text-ink">{race?.name ?? "Race " + raceNum}</p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              {hasResults ? "Results" : "Race card"}
+            </h2>
+            {(userRole === "jockey" || userRole === "agent") && !isPast && hasEntries && (
+              <p className="text-xs text-zinc-500">Tap a race to request rides</p>
+            )}
+          </div>
+
+          {hasResults ? (
+            <div className="space-y-4">
+              {resultRaceNums.map((raceNum) => {
+                const race = resultsByRace.get(raceNum)!;
+                return (
+                  <div key={raceNum} className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+                    <div className="flex items-center justify-between border-b border-line bg-mist px-4 py-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Race {raceNum}</p>
+                        <p className="font-semibold text-ink">{race.name ?? `Race ${raceNum}`}</p>
+                      </div>
+                      <div className="text-right text-xs text-zinc-500 space-y-0.5">
+                        {race.distanceM ? <p className="font-medium">{race.distanceM}m</p> : null}
+                        {race.prize ? <p>${race.prize.toLocaleString("en-NZ")}</p> : null}
+                      </div>
                     </div>
-                    <div className="text-right text-xs text-zinc-500 space-y-0.5">
-                      {race?.distanceM ? <p className="font-medium">{race.distanceM}m</p> : null}
-                      {race?.prize ? <p>${race.prize.toLocaleString("en-NZ")}</p> : null}
-                    </div>
-                  </div>
-                  {hasResults ? (
                     <div className="divide-y divide-line">
                       {race.rows.map((r) => (
                         <div key={r.position} className="flex items-center gap-3 px-4 py-3">
@@ -182,30 +239,24 @@ export default async function MeetingDetailPage({
                         </div>
                       ))}
                     </div>
-                  ) : raceEntries.length > 0 ? (
-                    <div className="divide-y divide-line">
-                      {raceEntries.map((e) => (
-                        <div key={e.id} className="flex items-center gap-3 px-4 py-3">
-                          {e.barrier != null ? (
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-line bg-white text-xs font-bold text-zinc-600">{e.barrier}</span>
-                          ) : <span className="w-6 shrink-0" />}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-ink">{e.horse_name}</p>
-                            <p className="truncate text-xs text-zinc-500">{[e.jockey_name, e.trainer_name].filter(Boolean).join(" · ")}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="px-4 py-4 text-sm text-zinc-400">Entries not yet declared</p>
-                  )}
-                </div>
-              );
-            })
+                  </div>
+                );
+              })}
+            </div>
+          ) : hasEntries ? (
+            <RaceDayAccordions
+              races={raceDataList}
+              entriesByRace={entriesByRace}
+              role={userRole}
+              meetingId={meeting.id}
+              requestedHorses={requestedHorses}
+            />
           ) : (
             <div className="rounded-2xl border border-line bg-white p-8 text-center">
               <p className="text-sm font-medium text-zinc-600">
-                {isPast ? "No results have been synced yet for this meeting." : "Race entries will appear here once declared — usually 2 days before race day."}
+                {isPast
+                  ? "No results have been synced yet for this meeting."
+                  : "Race entries will appear here once declared — usually 2 days before race day."}
               </p>
             </div>
           )}
