@@ -133,10 +133,10 @@ function CropModal({
               <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
                       <h3 className="mb-1 font-display text-lg font-semibold text-ink">
                                 Crop profile photo
-                      </h3>h3>
+                      </h3>
                       <p className="mb-4 text-sm text-zinc-500">
                                 Drag to reposition · scroll or pinch to zoom
-                      </p>p>
+                      </p>
                       <canvas
                                   ref={canvasRef}
                                   width={CANVAS_SIZE}
@@ -152,13 +152,13 @@ function CropModal({
                       <div className="mt-5 flex justify-end gap-3">
                                 <Button variant="ghost" type="button" onClick={onCancel}>
                                             Cancel
-                                </Button>Button>
+                                </Button>
                                 <Button variant="accent" type="button" onClick={confirm}>
                                             Save photo
-                                </Button>Button>
-                      </div>div>
-              </div>div>
-        </div>div>
+                                </Button>
+                      </div>
+              </div>
+        </div>
       );
 }
 
@@ -328,12 +328,12 @@ export function ProfileForm({
                                                                                                   fill="currentColor"
                                                                                                   d="M4 12a8 8 0 018-8v8H4z"
                                                                                                 />
-                                                  </svg>svg>
-                              </div>div>
+                                                  </svg>
+                              </div>
                             ) : null}
-                                                            </div>div>
+                                                            </div>
                                                             <div>
-                                                                            <Label htmlFor="photo">Profile photo</Label>Label>
+                                                                            <Label htmlFor="photo">Profile photo</Label>
                                                                             <input
                                                                                                 ref={fileInputRef}
                                                                                                 id="photo"
@@ -347,36 +347,36 @@ export function ProfileForm({
                                                                                               />
                                                                             <p className="mt-1 text-xs text-zinc-400">
                                                                                               Tap to choose · you'll be able to crop before saving
-                                                                            </p>p>
-                                                            </div>div>
-                                              </div>div>
+                                                                            </p>
+                                                            </div>
+                                              </div>
                                   
                                               <div className="grid gap-4 sm:grid-cols-2">
                                                             <div>
-                                                                            <Label htmlFor="pf-first">First name</Label>Label>
+                                                                            <Label htmlFor="pf-first">First name</Label>
                                                                             <Input
                                                                                                 id="pf-first"
                                                                                                 value={firstName}
                                                                                                 onChange={(e) => setFirstName(e.target.value)}
                                                                                               />
-                                                            </div>div>
+                                                            </div>
                                                             <div>
-                                                                            <Label htmlFor="pf-last">Last name</Label>Label>
+                                                                            <Label htmlFor="pf-last">Last name</Label>
                                                                             <Input
                                                                                                 id="pf-last"
                                                                                                 value={lastName}
                                                                                                 onChange={(e) => setLastName(e.target.value)}
                                                                                               />
-                                                            </div>div>
-                                              </div>div>
+                                                            </div>
+                                              </div>
                                   
                                               <div className="grid gap-4 sm:grid-cols-2">
                                                             <div>
-                                                                            <Label htmlFor="pf-email">Email</Label>Label>
+                                                                            <Label htmlFor="pf-email">Email</Label>
                                                                             <Input id="pf-email" value={email} disabled />
-                                                            </div>div>
+                                                            </div>
                                                             <div>
-                                                                            <Label htmlFor="pf-phone">Mobile number</Label>Label>
+                                                                            <Label htmlFor="pf-phone">Mobile number</Label>
                                                                             <Input
                                                                                                 id="pf-phone"
                                                                                                 type="tel"
@@ -387,35 +387,35 @@ export function ProfileForm({
                               <Hint>
                                                   Trainer accounts verify automatically when this matches the
                                                   NZTR registry.
-                              </Hint>Hint>
+                              </Hint>
                             ) : null}
-                                                            </div>div>
-                                              </div>div>
+                                                            </div>
+                                              </div>
                                   
                                               <div className="grid gap-4 sm:grid-cols-2">
                                                             <div>
-                                                                            <Label htmlFor="pf-country">Country</Label>Label>
+                                                                            <Label htmlFor="pf-country">Country</Label>
                                                                             <Input
                                                                                                 id="pf-country"
                                                                                                 value={country}
                                                                                                 onChange={(e) => setCountry(e.target.value)}
                                                                                               />
-                                                            </div>div>
+                                                            </div>
                                                             <div>
                                                                             <Label htmlFor="pf-region">
                                                                               {isJockey ? "Base region" : "Region / stable location"}
-                                                                            </Label>Label>
+                                                                            </Label>
                                                                             <Input
                                                                                                 id="pf-region"
                                                                                                 value={baseRegion}
                                                                                                 onChange={(e) => setBaseRegion(e.target.value)}
                                                                                                 placeholder="Waikato"
                                                                                               />
-                                                            </div>div>
-                                              </div>div>
+                                                            </div>
+                                              </div>
                                   
                                               <div>
-                                                            <Label htmlFor="pf-bio">Short bio</Label>Label>
+                                                            <Label htmlFor="pf-bio">Short bio</Label>
                                                             <Textarea
                                                                               id="pf-bio"
                                                                               value={bio}
@@ -426,31 +426,31 @@ export function ProfileForm({
                                                                                                     : "A few lines about you or your stable."
                                                                               }
                                                                             />
-                                              </div>div>
-                                  </CardBody>CardBody>
-                        </Card>Card>
+                                              </div>
+                                  </CardBody>
+                        </Card>
                 
                   {isJockey ? (
                       <Card>
                                   <CardBody className="space-y-5">
                                                 <h2 className="font-display text-lg font-semibold text-ink">
                                                                 Riding details
-                                                </h2>h2>
+                                                </h2>
                                   
                                                 <div className="grid gap-4 sm:grid-cols-2">
                                                                 <div>
-                                                                                  <Label htmlFor="pf-licence">Licence type</Label>Label>
+                                                                                  <Label htmlFor="pf-licence">Licence type</Label>
                                                                                   <Select
                                                                                                         id="pf-licence"
                                                                                                         value={licenceType}
                                                                                                         onChange={(e) => setLicenceType(e.target.value)}
                                                                                                       >
-                                                                                                      <option value="race_jockey">Race jockey</option>option>
-                                                                                                      <option value="trial_jumpout_only">Trials and jumpouts only</option>option>
-                                                                                    </Select>Select>
-                                                                </div>div>
+                                                                                                      <option value="race_jockey">Race jockey</option>
+                                                                                                      <option value="trial_jumpout_only">Trials and jumpouts only</option>
+                                                                                    </Select>
+                                                                </div>
                                                                 <div>
-                                                                                  <Label htmlFor="pf-weight">Riding weight (kg)</Label>Label>
+                                                                                  <Label htmlFor="pf-weight">Riding weight (kg)</Label>
                                                                                   <Input
                                                                                                         id="pf-weight"
                                                                                                         type="number"
@@ -460,9 +460,9 @@ export function ProfileForm({
                                                                                                         onChange={(e) => setWeight(e.target.value)}
                                                                                                         placeholder="54.5"
                                                                                                       />
-                                                                                  <Hint>Weight changes often. You can also update it from your dashboard.</Hint>Hint>
-                                                                </div>div>
-                                                </div>div>
+                                                                                  <Hint>Weight changes often. You can also update it from your dashboard.</Hint>
+                                                                </div>
+                                                </div>
                                   
                                                 <label className="flex items-center gap-2.5 text-sm font-medium text-zinc-700">
                                                                 <input
@@ -472,12 +472,12 @@ export function ProfileForm({
                                                                                     className="h-4 w-4 rounded border-line text-turf-600 focus:ring-turf-600"
                                                                                   />
                                                                 I am an apprentice
-                                                </label>label>
+                                                </label>
                                   
                                     {apprentice ? (
                                         <div className="grid gap-4 sm:grid-cols-2">
                                                           <div>
-                                                                              <Label htmlFor="pf-claim">Apprentice claim (kg)</Label>Label>
+                                                                              <Label htmlFor="pf-claim">Apprentice claim (kg)</Label>
                                                                               <Input
                                                                                                       id="pf-claim"
                                                                                                       type="number"
@@ -489,10 +489,10 @@ export function ProfileForm({
                                                                                                       onChange={(e) => setClaim(e.target.value)}
                                                                                                       placeholder="3"
                                                                                                     />
-                                                                              <Hint>Shown publicly as a1, a2, a3.</Hint>Hint>
-                                                          </div>div>
+                                                                              <Hint>Shown publicly as a1, a2, a3.</Hint>
+                                                          </div>
                                                           <div>
-                                                                              <Label htmlFor="pf-aweight">Weight with claim (kg)</Label>Label>
+                                                                              <Label htmlFor="pf-aweight">Weight with claim (kg)</Label>
                                                                               <Input
                                                                                                       id="pf-aweight"
                                                                                                       type="number"
@@ -502,41 +502,41 @@ export function ProfileForm({
                                                                                                       onChange={(e) => setApprenticeWeight(e.target.value)}
                                                                                                       placeholder="51.5"
                                                                                                     />
-                                                          </div>div>
-                                        </div>div>
+                                                          </div>
+                                        </div>
                                       ) : null}
                                   
                                                 <div>
-                                                                <Label htmlFor="pf-tracks">Preferred tracks or regions</Label>Label>
+                                                                <Label htmlFor="pf-tracks">Preferred tracks or regions</Label>
                                                                 <Input
                                                                                     id="pf-tracks"
                                                                                     value={preferredTracks}
                                                                                     onChange={(e) => setPreferredTracks(e.target.value)}
                                                                                     placeholder="Te Rapa, Ellerslie, Central Districts"
                                                                                   />
-                                                </div>div>
+                                                </div>
                                   
                                                 <div>
-                                                                <Label htmlFor="pf-availability">Availability notes</Label>Label>
+                                                                <Label htmlFor="pf-availability">Availability notes</Label>
                                                                 <Textarea
                                                                                     id="pf-availability"
                                                                                     value={availability}
                                                                                     onChange={(e) => setAvailability(e.target.value)}
                                                                                     placeholder="Available most Saturdays. Happy to travel for trials midweek."
                                                                                   />
-                                                </div>div>
-                                  </CardBody>CardBody>
-                      </Card>Card>
+                                                </div>
+                                  </CardBody>
+                      </Card>
                     ) : null}
                 
                         <div className="flex items-center gap-3">
                                   <Button variant="accent" onClick={save} disabled={busy || uploading}>
                                     {busy ? "Saving..." : "Save profile"}
-                                  </Button>Button>
-                          {saved ? <p className="text-sm font-medium text-turf-700">Saved</p>p> : null}
-                          {error ? <p className="text-sm text-red-600">{error}</p>p> : null}
-                        </div>div>
-                </div>div>
+                                  </Button>
+                          {saved ? <p className="text-sm font-medium text-turf-700">Saved</p> : null}
+                          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                        </div>
+                </div>
           </>>
         );
 }
