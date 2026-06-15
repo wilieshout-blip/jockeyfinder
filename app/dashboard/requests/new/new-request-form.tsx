@@ -1,6 +1,8 @@
 "use client";
 
-import { createRideRequest } from "../actions";
+import { useState } from "react";
+import { createRideRequest, fetchRacesForMeeting } from "../actions";
+import type { RaceOption } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Hint, Input, Label, Select, Textarea } from "@/components/ui/field";
 import { formatMeetingDate } from "@/lib/utils";
@@ -25,6 +27,27 @@ export function NewRequestForm({
   defaults: { meeting: string; counterpart: string; managedJockey: string };
 }) {
   const counterpartLabel = role === "trainer" ? "Jockey" : "Trainer";
+
+  const [selectedMeetingId, setSelectedMeetingId] = useState(defaults.meeting);
+  const [races, setRaces] = useState<RaceOption[]>([]);
+  const [selectedRaceId, setSelectedRaceId] = useState("");
+  const [isLoadingRaces, setIsLoadingRaces] = useState(false);
+
+  async function handleMeetingChange(meetingId: string) {
+    setSelectedMeetingId(meetingId);
+    setSelectedRaceId("");
+    setRaces([]);
+    if (!meetingId) return;
+    setIsLoadingRaces(true);
+    try {
+      const r = await fetchRacesForMeeting(meetingId);
+      setRaces(r);
+    } finally {
+      setIsLoadingRaces(false);
+    }
+  }
+
+  const selectedRace = races.find((r) => r.id === selectedRaceId) ?? null;
 
   return (
     <form
@@ -57,7 +80,13 @@ export function NewRequestForm({
 
       <div>
         <Label htmlFor="nr-meeting">Meeting</Label>
-        <Select id="nr-meeting" name="meeting_id" defaultValue={defaults.meeting} required>
+        <Select
+          id="nr-meeting"
+          name="meeting_id"
+          value={selectedMeetingId}
+          onChange={(e) => handleMeetingChange(e.target.value)}
+          required
+        >
           <option value="" disabled>
             Choose a meeting
           </option>
@@ -68,6 +97,49 @@ export function NewRequestForm({
           ))}
         </Select>
       </div>
+
+      {/* Race selection — shown once races load for the chosen meeting */}
+      {selectedMeetingId ? (
+        <div>
+          <Label htmlFor="nr-race">Race</Label>
+          {isLoadingRaces ? (
+            <p className="mt-1 text-sm text-zinc-400">Loading races…</p>
+          ) : races.length > 0 ? (
+            <>
+              <Select
+                id="nr-race"
+                value={selectedRaceId}
+                onChange={(e) => setSelectedRaceId(e.target.value)}
+              >
+                <option value="">Any race (no specific race)</option>
+                {races.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    Race {r.race_number} · {r.name}
+                  </option>
+                ))}
+              </Select>
+              {/* Hidden inputs carry race_id and race_number to the server action */}
+              <input type="hidden" name="race_id" value={selectedRace?.id ?? ""} />
+              <input
+                type="hidden"
+                name="race_number"
+                value={selectedRace?.race_number ?? ""}
+              />
+            </>
+          ) : (
+            /* Fallback: no scraped races yet — let them type a number manually */
+            <Input
+              id="nr-race"
+              name="race_number"
+              type="number"
+              min="1"
+              max="20"
+              inputMode="numeric"
+              placeholder="e.g. 5"
+            />
+          )}
+        </div>
+      ) : null}
 
       <div>
         <Label htmlFor="nr-counterpart">{counterpartLabel}</Label>
@@ -88,23 +160,9 @@ export function NewRequestForm({
         </Select>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
-        <div>
-          <Label htmlFor="nr-horse">Horse name</Label>
-          <Input id="nr-horse" name="horse_name" placeholder="Optional but helpful" />
-        </div>
-        <div>
-          <Label htmlFor="nr-race">Race no.</Label>
-          <Input
-            id="nr-race"
-            name="race_number"
-            type="number"
-            min="1"
-            max="12"
-            inputMode="numeric"
-            placeholder="5"
-          />
-        </div>
+      <div>
+        <Label htmlFor="nr-horse">Horse name</Label>
+        <Input id="nr-horse" name="horse_name" placeholder="Optional but helpful" />
       </div>
 
       <div>
