@@ -24,6 +24,7 @@ type PendingProfile = {
   created_at: string;
   profile_photo_url: string | null;
   id_document_path: string | null;
+  licence_type: string | null;
 };
 
 async function count(admin: ReturnType<typeof createAdminClient>, table: string, filters?: (q: any) => any) {
@@ -64,7 +65,7 @@ export default async function AdminPage() {
   const { data: pendingJockeys } = await admin
     .from("profiles")
     .select(
-      "id, full_name, email, role, phone, base_region, registry_match, created_at, profile_photo_url, id_document_path"
+      "id, full_name, email, role, phone, base_region, registry_match, created_at, profile_photo_url, id_document_path, licence_type"
     )
     .eq("role", "jockey")
     .eq("verification_status", "pending")
@@ -73,12 +74,13 @@ export default async function AdminPage() {
   const { data: pendingAgents } = await admin
     .from("profiles")
     .select(
-      "id, full_name, email, role, phone, base_region, registry_match, created_at, profile_photo_url, id_document_path"
+      "id, full_name, email, role, phone, base_region, registry_match, created_at, profile_photo_url, id_document_path, licence_type"
     )
     .eq("role", "agent")
     .eq("verification_status", "pending")
     .order("created_at", { ascending: true });
 
+  // Short-lived links so the admin can eyeball uploaded IDs.
   const idDocLinks = new Map<string, string>();
   const pendingWithDocs = [...(pendingJockeys || []), ...(pendingAgents || [])].filter(
     (p: any) => p.id_document_path
@@ -129,75 +131,104 @@ export default async function AdminPage() {
   const nameById = new Map((people || []).map((p) => [p.id, p.full_name || "Unknown"]));
   const meetingById = new Map((reqMeetings || []).map((m) => [m.id, m]));
 
-  const PendingList = ({ rows, kind }: { rows: PendingProfile[]; kind: "jockey" | "agent" }) => (
+  const PendingList = ({
+    rows,
+    kind,
+    emptyLabel,
+  }: {
+    rows: PendingProfile[];
+    kind: "jockey" | "agent" | "trial_rider";
+    emptyLabel?: string;
+  }) => (
     <div className="space-y-3">
       {rows.length === 0 ? (
-        <EmptyState title={`No ${kind}s waiting`}>
-          New {kind} signups will appear here for review.
+        <EmptyState title={emptyLabel ?? "No " + kind + "s waiting"}>
+          New signups will appear here for review.
         </EmptyState>
       ) : (
-        rows.map((p) => (
-          <Card key={p.id}>
-            <CardBody className="flex flex-wrap items-center gap-4">
-              <Avatar name={p.full_name} src={p.profile_photo_url} size="md" />
-              <div className="min-w-0 flex-1">
-                <p className="font-display font-semibold text-ink">
-                  {p.full_name || "Unnamed"}
-                </p>
-                <p className="text-sm text-zinc-500">
-                  {p.email || "no email"}
-                  {p.phone ? ` · ${p.phone}` : ""}
-                  {p.base_region ? ` · ${p.base_region}` : ""}
-                </p>
-                <p className="mt-1 text-xs text-zinc-400">
-                  Signed up {formatDateTime(p.created_at)}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {idDocLinks.has(p.id) ? (
-                  <a
-                    href={idDocLinks.get(p.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700 hover:bg-turf-100"
-                  >
-                    View ID
-                  </a>
-                ) : (
-                  <Badge tone="neutral">No ID uploaded</Badge>
-                )}
-                {kind === "agent" && (
-                  <Badge tone={p.registry_match ? "turf" : "amber"}>
-                    {p.registry_match ? "Registry match" : "No registry match"}
-                  </Badge>
-                )}
-                <form action={approveUser}>
-                  <input type="hidden" name="user_id" value={p.id} />
-                  <Button size="sm" type="submit">
-                    Approve
-                  </Button>
-                </form>
-                <form action={rejectUser}>
-                  <input type="hidden" name="user_id" value={p.id} />
-                  <Button size="sm" variant="ghost" type="submit">
-                    Reject
-                  </Button>
-                </form>
-                {kind === "agent" && (
-                  <form action={markAgentPaid}>
+        rows.map((p) => {
+          const isTrialRider = p.licence_type === "trial_jumpout_only";
+          const docLabel = isTrialRider ? "View permit" : "View ID";
+          return (
+            <Card key={p.id}>
+              <CardBody className="flex flex-wrap items-center gap-4">
+                <Avatar name={p.full_name} src={p.profile_photo_url} size="md" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-display font-semibold text-ink">
+                      {p.full_name || "Unnamed"}
+                    </p>
+                    {isTrialRider && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                        Trial rider
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-zinc-500">
+                    {p.email || "no email"}
+                    {p.phone ? " · " + p.phone : ""}
+                    {p.base_region ? " · " + p.base_region : ""}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Signed up {formatDateTime(p.created_at)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {idDocLinks.has(p.id) ? (
+                    <a
+                      href={idDocLinks.get(p.id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700 hover:bg-turf-100"
+                    >
+                      {docLabel}
+                    </a>
+                  ) : (
+                    <Badge tone="neutral">
+                      {isTrialRider ? "No permit uploaded" : "No ID uploaded"}
+                    </Badge>
+                  )}
+                  {kind === "agent" && (
+                    <Badge tone={p.registry_match ? "turf" : "amber"}>
+                      {p.registry_match ? "Registry match" : "No registry match"}
+                    </Badge>
+                  )}
+                  <form action={approveUser}>
                     <input type="hidden" name="user_id" value={p.id} />
-                    <Button size="sm" variant="outline" type="submit">
-                      Mark paid
+                    <Button size="sm" type="submit">
+                      Approve
                     </Button>
                   </form>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-        ))
+                  <form action={rejectUser}>
+                    <input type="hidden" name="user_id" value={p.id} />
+                    <Button size="sm" variant="ghost" type="submit">
+                      Reject
+                    </Button>
+                  </form>
+                  {kind === "agent" && (
+                    <form action={markAgentPaid}>
+                      <input type="hidden" name="user_id" value={p.id} />
+                      <Button size="sm" variant="outline" type="submit">
+                        Mark paid
+                      </Button>
+                    </form>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })
       )}
     </div>
   );
+
+  // Split pending jockeys: full licence vs trial riders
+  const pendingFullJockeys = (pendingJockeys || []).filter(
+    (p: any) => p.licence_type !== "trial_jumpout_only"
+  ) as PendingProfile[];
+  const pendingTrialRiders = (pendingJockeys || []).filter(
+    (p: any) => p.licence_type === "trial_jumpout_only"
+  ) as PendingProfile[];
 
   return (
     <div className="space-y-10">
@@ -205,6 +236,7 @@ export default async function AdminPage() {
         Approvals, registry checks and the race calendar feed.
       </SectionHeading>
 
+      {/* Test accounts panel */}
       <section>
         <div className="mb-4 flex items-center gap-3">
           <h2 className="font-display text-lg font-semibold text-ink">
@@ -218,7 +250,7 @@ export default async function AdminPage() {
           Click any card to instantly sign in as that test user via a one-time link.
           Your admin session ends — log back in as{" "}
           <span className="font-medium text-ink">wilieshout@gmail.com</span> to return here.
-          Password for manual login: <span className="font-mono font-medium text-ink">TestPass123!</span>
+          Password for all test accounts: <span className="font-mono font-medium text-ink">TestPass123!</span>
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {TEST_ACCOUNTS.map((account) => (
@@ -242,6 +274,7 @@ export default async function AdminPage() {
         </div>
       </section>
 
+      {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           ["Jockeys", jockeys],
@@ -281,7 +314,27 @@ export default async function AdminPage() {
         <h2 className="mb-4 font-display text-lg font-semibold text-ink">
           Jockeys awaiting approval
         </h2>
-        <PendingList rows={(pendingJockeys || []) as PendingProfile[]} kind="jockey" />
+        <PendingList
+          rows={pendingFullJockeys}
+          kind="jockey"
+          emptyLabel="No jockeys waiting"
+        />
+      </section>
+
+      <section>
+        <div className="mb-4 flex items-center gap-3">
+          <h2 className="font-display text-lg font-semibold text-ink">
+            Trial riders awaiting approval
+          </h2>
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+            Permit required
+          </span>
+        </div>
+        <PendingList
+          rows={pendingTrialRiders}
+          kind="trial_rider"
+          emptyLabel="No trial riders waiting"
+        />
       </section>
 
       <section>
@@ -343,9 +396,9 @@ export default async function AdminPage() {
                         {nameById.get(r.jockey_id) || "Jockey"}
                       </p>
                       <p className="text-xs text-zinc-400">
-                        {r.horse_name ? `${r.horse_name} · ` : ""}
-                        {m ? `${m.track}, ${formatMeetingDate(m.meeting_date)}` : "No meeting"}
-                        {r.race_number ? ` · R${r.race_number}` : ""}
+                        {r.horse_name ? r.horse_name + " · " : ""}
+                        {m ? m.track + ", " + formatMeetingDate(m.meeting_date) : "No meeting"}
+                        {r.race_number ? " · R" + r.race_number : ""}
                       </p>
                     </div>
                     <span
@@ -365,4 +418,4 @@ export default async function AdminPage() {
       </section>
     </div>
   );
-   }
+}
