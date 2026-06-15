@@ -79,6 +79,7 @@ export function MeetingsFilterBar({
 
   return (
     <div className="space-y-4">
+      {/* Races / Trials primary toggle */}
       <div className="flex items-center gap-1 rounded-2xl border border-line bg-white p-1.5 shadow-card w-fit">
         <button
           type="button"
@@ -105,17 +106,43 @@ export function MeetingsFilterBar({
           Trials
         </button>
       </div>
+
+      {/* Extra filters - races only */}
       {isRaces && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mr-1">Filter</span>
-          <FilterChip active={activeCat === "premier"} onClick={() => toggleCat("premier")}>Premier</FilterChip>
-          <FilterChip active={activeDay === "sat"} onClick={() => toggleDay("sat")}>Saturday</FilterChip>
-          <FilterChip active={activeDay === "wed"} onClick={() => toggleDay("wed")}>Wednesday</FilterChip>
-          <FilterChip active={activeDay === "sun"} onClick={() => toggleDay("sun")}>Sunday</FilterChip>
-          <FilterChip active={activeCat === "jumps"} onClick={() => toggleCat("jumps")}>Jumps</FilterChip>
+          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mr-1">
+            Filter
+          </span>
+          <FilterChip
+            active={activeCat === "premier"}
+            onClick={() => toggleCat("premier")}
+          >
+            Star Premier
+          </FilterChip>
+          <FilterChip
+            active={activeDay === "sat"}
+            onClick={() => toggleDay("sat")}
+          >
+            Saturday
+          </FilterChip>
+          <FilterChip
+            active={activeDay === "wed"}
+            onClick={() => toggleDay("wed")}
+          >
+            Wednesday
+          </FilterChip>
+          <FilterChip
+            active={activeDay === "sun"}
+            onClick={() => toggleDay("sun")}
+          >
+            Sunday
+          </FilterChip>
         </div>
       )}
-      <p className="text-xs text-zinc-400">{totalCount} {totalCount === 1 ? "meeting" : "meetings"}</p>
+
+      <p className="text-xs text-zinc-400">
+        {totalCount} {totalCount === 1 ? "meeting" : "meetings"}
+      </p>
     </div>
   );
 }
