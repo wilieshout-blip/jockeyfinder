@@ -177,7 +177,7 @@ export async function updateRequestStatus(formData: FormData) {
       if (thread) {
         const participantIds = Array.from(
           new Set([request.trainer_id, request.jockey_id, request.created_by])
-        );
+        ).filter((id): id is string => id != null);
         await supabase.from("chat_participants").insert(
           participantIds.map((uid) => ({ thread_id: thread.id, user_id: uid }))
         );
