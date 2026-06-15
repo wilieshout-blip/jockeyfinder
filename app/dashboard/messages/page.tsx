@@ -167,4 +167,3 @@ export default async function MessagesPage() {
         </div>
       );
 }
-</div>
