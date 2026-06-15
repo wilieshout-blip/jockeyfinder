@@ -36,8 +36,8 @@ function VerificationBanner({ profile }: { profile: Profile }) {
       {profile.role === "jockey"
         ? "You can set up your profile and mark attendance now. Once an admin verifies you, your profile goes public and you can request rides."
         : profile.role === "agent"
-          ? "Agent accounts are approved manually by an admin, even when your phone matches the registry. You will get full access once approved."
-          : "We could not match your phone number against the NZTR registry. Check it on your profile page, or wait for a manual review."}
+        ? "Agent accounts are approved manually by an admin, even when your phone matches the registry. You will get full access once approved."
+        : "We could not match your phone number against the NZTR registry. Check it on your profile page, or wait for a manual review."}
       {!profile.registry_match && profile.role !== "agent" ? (
         <IdUploadForm
           userId={profile.id}
@@ -66,7 +66,6 @@ export default async function DashboardPage() {
   const admin = isAdminEmail(user.email);
   const firstName = profile.first_name || "there";
 
-  // Shared data: upcoming meetings window.
   const { data: upcomingMeetings } = await supabase
     .from("meetings")
     .select("id, nztr_day_id, meeting_date, track, club, source, meeting_type")
@@ -76,7 +75,6 @@ export default async function DashboardPage() {
     .limit(6)
     .returns<Meeting[]>();
 
-  // Jockey: meetings they marked attending.
   let attendingMeetings: Meeting[] = [];
   if (profile.role === "jockey") {
     const { data: rows } = await supabase
@@ -98,7 +96,6 @@ export default async function DashboardPage() {
     }
   }
 
-  // Recent ride requests involving this user.
   const { data: requests } = await supabase
     .from("ride_requests")
     .select("*")
@@ -107,7 +104,6 @@ export default async function DashboardPage() {
     .limit(5)
     .returns<RideRequest[]>();
 
-  // Agent: managed jockeys.
   let managed: Profile[] = [];
   if (profile.role === "agent") {
     const { data: links } = await supabase
@@ -125,8 +121,7 @@ export default async function DashboardPage() {
     }
   }
 
-
-  // Trainer: horse links
+  // Trainer: horse links (pending + confirmed)
   let trainerHorseLinks: any[] = [];
   if (profile.role === "trainer") {
     const { data } = await supabase
@@ -138,7 +133,7 @@ export default async function DashboardPage() {
     trainerHorseLinks = data ?? [];
   }
 
-  // Owner: horse links
+  // Owner: horse links (pending + confirmed)
   let ownerHorseLinks: any[] = [];
   if (profile.role === "owner") {
     const { data } = await supabase
@@ -236,8 +231,7 @@ export default async function DashboardPage() {
                 <Link href="/dashboard/calendar" className="font-medium text-turf-700 underline">
                   My Calendar
                 </Link>{" "}
-                and tap the meetings you plan to ride at. Verified profiles
-                appear publicly so trainers can find you.
+                and tap the meetings you plan to ride at.
               </EmptyState>
             )}
           </section>
@@ -245,62 +239,69 @@ export default async function DashboardPage() {
       ) : null}
 
       {profile.role === "trainer" ? (
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
-              Next two weeks
-            </h2>
-            <Link
-              href="/dashboard/requests/new"
-              className={buttonClasses("accent", "sm")}
-            >
-              Request a jockey
-            </Link>
-          </div>
-          {upcomingMeetings && upcomingMeetings.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {upcomingMeetings.map((m) => (
-                <Link
-                  key={m.id}
-                  href={`/meetings/${m.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3 transition-colors hover:border-turf-200 hover:bg-turf-50/40"
-                >
-                  <DateBlock date={m.meeting_date} />
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-ink">{m.track}</p>
-                    <p className="truncate text-sm text-zinc-500">
-                      {m.club ?? "View attending jockeys"}
-                    </p>
-                  </div>
-                </Link>
-              ))}
+        <>
+          <HorsePreloadWizard links={trainerHorseLinks} role="trainer" />
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                Next two weeks
+              </h2>
+              <Link
+                href="/dashboard/requests/new"
+                className={buttonClasses("accent", "sm")}
+              >
+                Request a jockey
+              </Link>
             </div>
-          ) : (
-            <EmptyState title="No meetings in the next two weeks">
-              Once the meeting sync has run, upcoming race days appear here
-              with the jockeys attending each one.
-            </EmptyState>
-          )}
-        </section>
+            {upcomingMeetings && upcomingMeetings.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {upcomingMeetings.map((m) => (
+                  <Link
+                    key={m.id}
+                    href={`/meetings/${m.id}`}
+                    className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3 transition-colors hover:border-turf-200 hover:bg-turf-50/40"
+                  >
+                    <DateBlock date={m.meeting_date} />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-ink">{m.track}</p>
+                      <p className="truncate text-sm text-zinc-500">
+                        {m.club ?? "View attending jockeys"}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="No meetings in the next two weeks">
+                Once the meeting sync has run, upcoming race days appear here.
+              </EmptyState>
+            )}
+          </section>
+          <TrainerHorses initialLinks={trainerHorseLinks} role="trainer" />
+        </>
       ) : null}
 
       {profile.role === "owner" ? (
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            { href: "/meetings", title: "Race meetings", blurb: "See the next 30 days and who is riding where." },
-            { href: "/jockeys", title: "Jockeys", blurb: "Verified riders with weights and claims." },
-            { href: "/trainers", title: "Trainers", blurb: "Verified stables across New Zealand." },
-          ].map((c) => (
-            <Link
-              key={c.href}
-              href={c.href}
-              className="rounded-2xl border border-line bg-white p-5 shadow-card transition-shadow hover:shadow-lift"
-            >
-              <p className="font-display font-semibold text-ink">{c.title}</p>
-              <p className="mt-1 text-sm text-zinc-500">{c.blurb}</p>
-            </Link>
-          ))}
-        </div>
+        <>
+          <HorsePreloadWizard links={ownerHorseLinks} role="owner" />
+          <TrainerHorses initialLinks={ownerHorseLinks} role="owner" />
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { href: "/meetings", title: "Race meetings", blurb: "See the next 30 days and who is riding where." },
+              { href: "/jockeys", title: "Jockeys", blurb: "Verified riders with weights and claims." },
+              { href: "/trainers", title: "Trainers", blurb: "Verified stables across New Zealand." },
+            ].map((c) => (
+              <Link
+                key={c.href}
+                href={c.href}
+                className="rounded-2xl border border-line bg-white p-5 shadow-card transition-shadow hover:shadow-lift"
+              >
+                <p className="font-display font-semibold text-ink">{c.title}</p>
+                <p className="mt-1 text-sm text-zinc-500">{c.blurb}</p>
+              </Link>
+            ))}
+          </div>
+        </>
       ) : null}
 
       {profile.role === "agent" ? (
@@ -326,9 +327,9 @@ export default async function DashboardPage() {
                   <div>
                     <p className="font-medium text-ink">{j.full_name}</p>
                     <p className="text-sm text-zinc-500">
-                      {j.riding_weight != null ? `${j.riding_weight}kg` : "No weight set"}
+                      {j.riding_weight != null ? j.riding_weight + "kg" : "No weight set"}
                       {j.apprentice && formatClaim(j.apprentice_claim)
-                        ? ` · claims ${formatClaim(j.apprentice_claim)}`
+                        ? " · claims " + formatClaim(j.apprentice_claim)
                         : ""}
                     </p>
                   </div>
@@ -340,8 +341,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <EmptyState title="No jockeys linked yet">
-              Add the jockeys you manage from the My Jockeys page. You can
-              then mark their attendance and request rides on their behalf.
+              Add the jockeys you manage from the My Jockeys page.
             </EmptyState>
           )}
         </section>
@@ -370,7 +370,7 @@ export default async function DashboardPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium text-ink">
                     {r.horse_name || "Ride request"}
-                    {r.race_number ? ` · R${r.race_number}` : ""}
+                    {r.race_number ? " · R" + r.race_number : ""}
                   </p>
                   {r.note ? (
                     <p className="truncate text-sm text-zinc-500">{r.note}</p>
@@ -392,8 +392,8 @@ export default async function DashboardPage() {
             {profile.role === "trainer"
               ? "Request a jockey from any meeting page or the Requests tab."
               : profile.role === "jockey"
-                ? "Once verified, you can request rides and receive offers from trainers here."
-                : "Ride requests involving you will appear here."}
+              ? "Once verified, you can request rides and receive offers from trainers here."
+              : "Ride requests involving you will appear here."}
           </EmptyState>
         )}
       </section>
