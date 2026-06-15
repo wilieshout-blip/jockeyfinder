@@ -537,7 +537,6 @@ export function ProfileForm({
                           {error ? <p className="text-sm text-red-600">{error}</p> : null}
                         </div>
                 </div>
-          </>>
+          </>
         );
 }
-</></div>
