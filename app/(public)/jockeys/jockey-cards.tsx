@@ -59,19 +59,21 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
             key={j.id}
             className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-card transition-shadow hover:shadow-lift"
           >
-            {/* Tappable header row */}
+            {/* Tappable header — whole collapsed surface is one button */}
             <button
               type="button"
               onClick={() => setOpenId(isOpen ? null : j.id)}
-              className="flex w-full items-start gap-4 p-5 text-left"
+              className="flex w-full cursor-pointer items-start gap-4 p-5 text-left transition-colors hover:bg-mist/60 active:bg-mist"
             >
               <Avatar src={j.profile_photo_url} name={j.full_name} size="lg" />
               <div className="min-w-0 flex-1">
+                {/* Name + rotating chevron */}
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
                     {j.full_name}
                   </h2>
                   <svg
+                    aria-hidden="true"
                     className={cn(
                       "mt-1 h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200",
                       isOpen && "rotate-180"
@@ -88,6 +90,8 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
                     />
                   </svg>
                 </div>
+
+                {/* Weight / apprentice / licence badges */}
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   {j.riding_weight != null ? (
                     <Badge tone="neutral">{formatWeight(j.riding_weight)}</Badge>
@@ -101,32 +105,45 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
                     </Badge>
                   ) : null}
                 </div>
+
+                {/* Region */}
                 {j.base_region ? (
                   <p className="mt-1.5 text-sm text-zinc-500">{j.base_region}</p>
                 ) : null}
+
+                {/* Collapsed-only: bio preview + tap hint */}
+                {!isOpen && (
+                  <div className="mt-2 space-y-1">
+                    {j.bio ? (
+                      <p className="line-clamp-2 text-sm text-zinc-600">{j.bio}</p>
+                    ) : null}
+                    <p className="text-xs text-zinc-400">
+                      {meetingCount > 0 ? (
+                        <>
+                          Attending{" "}
+                          <span className="font-medium text-zinc-500">
+                            {meetingCount}
+                          </span>{" "}
+                          upcoming {meetingCount === 1 ? "meeting" : "meetings"}
+                          {" "}· tap to expand
+                        </>
+                      ) : (
+                        "Tap to expand"
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             </button>
 
-            {/* Collapsed: brief bio + meeting count */}
-            {!isOpen ? (
-              <div className="px-5 pb-5">
-                {j.bio ? (
-                  <p className="mb-3 line-clamp-2 text-sm text-zinc-600">
-                    {j.bio}
-                  </p>
-                ) : null}
-                <p className="text-sm text-zinc-500">
-                  Attending{" "}
-                  <span className="font-semibold text-ink">{meetingCount}</span>{" "}
-                  upcoming {meetingCount === 1 ? "meeting" : "meetings"}
-                </p>
-              </div>
-            ) : (
-              /* Expanded panel */
+            {/* Expanded panel */}
+            {isOpen && (
               <div className="space-y-4 border-t border-line bg-mist/40 px-5 py-4">
                 {j.bio ? (
                   <p className="text-sm text-zinc-700">{j.bio}</p>
-                ) : null}
+                ) : (
+                  <p className="text-sm italic text-zinc-400">No bio added yet.</p>
+                )}
 
                 {stat ? (
                   <div className="grid grid-cols-4 gap-2 text-center">
@@ -143,7 +160,9 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
                         key={label}
                         className="rounded-xl border border-line bg-white px-1 py-2.5"
                       >
-                        <p className="text-xs text-zinc-400">{label}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-zinc-400">
+                          {label}
+                        </p>
                         <p className="mt-0.5 font-display text-sm font-semibold text-ink">
                           {value}
                         </p>
