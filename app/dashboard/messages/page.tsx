@@ -108,17 +108,17 @@ export default async function MessagesPage() {
                       <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-turf-600">
                                             Messages
-                                </p>p>
+                                </p>
                                 <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
                                             Your conversations
-                                </h1>h1>
+                                </h1>
                                 <p className="mt-2 text-zinc-600">
                                             Ride chats are created automatically when a trainer assigns a
                                             jockey, so the booking and the conversation live together.
-                                </p>p>
-                      </div>div>
+                                </p>
+                      </div>
                       <NewConversationButton />
-              </div>div>
+              </div>
         
           {threads.length > 0 ? (
                   <div className="space-y-2">
@@ -139,32 +139,32 @@ export default async function MessagesPage() {
                                                                 >
                                                                 <Avatar src={other?.photo} name={other?.name} size="md" />
                                                                 <div className="min-w-0 flex-1">
-                                                                                  <p className="truncate font-medium text-ink">{title}</p>p>
+                                                                                  <p className="truncate font-medium text-ink">{title}</p>
                                                                                   <p className="truncate text-sm text-zinc-500">
                                                                                     {last
                                                                                                             ? last.body
                                                                                                             : meeting
                                                                                                               ? `${meeting.track} · no messages yet`
                                                                                                               : "No messages yet"}
-                                                                                    </p>p>
-                                                                </div>div>
+                                                                                    </p>
+                                                                </div>
                                                   {last ? (
                                                                                     <span className="shrink-0 text-xs text-zinc-400">
                                                                                       {formatDateTime(last.created_at)}
-                                                                                      </span>span>
+                                                                                      </span>
                                                                                   ) : null}
-                                                </Link>Link>
+                                                </Link>
                                               );
                   })}
-                  </div>div>
+                  </div>
                 ) : (
                   <EmptyState title="No conversations yet">
                             When a ride is assigned, a chat opens here automatically between the
-                            trainer and the jockey. Or tap <strong>+</strong>strong> to start a new
+                            trainer and the jockey. Or tap <strong>+</strong> to start a new
                             conversation directly.
-                  </EmptyState>EmptyState>
+                  </EmptyState>
               )}
-        </div>div>
+        </div>
       );
 }
 </div>
