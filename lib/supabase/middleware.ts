@@ -46,5 +46,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Forward the current pathname to server components via response header.
+  // AppShell reads this to exempt billing/profile from the jockey paywall wall.
+  supabaseResponse.headers.set("x-pathname", path);
+
   return supabaseResponse;
 }
