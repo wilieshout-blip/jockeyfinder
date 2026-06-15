@@ -44,7 +44,7 @@ export default async function RequestsPage({
   // Names of the people on each request.
   const personIds = Array.from(
     new Set(all.flatMap((r) => [r.trainer_id, r.jockey_id]))
-  ).filter((id) => id !== user.id);
+  ).filter((id): id is string => id != null && id !== user.id);
 
   const names = new Map<string, string>();
   if (personIds.length > 0) {
@@ -142,9 +142,10 @@ export default async function RequestsPage({
           {all.map((r) => {
             const meeting = r.meeting_id ? meetings.get(r.meeting_id) : null;
             const race = r.race_id ? races.get(r.race_id) : null;
-            const otherId = r.trainer_id === user.id ? r.jockey_id : r.trainer_id;
-            const otherName = names.get(otherId) ?? "Member";
-            const otherRole = r.trainer_id === user.id ? "Jockey" : "Trainer";
+            const iAmTrainer = r.trainer_id === user.id;
+            const otherId = iAmTrainer ? r.jockey_id : r.trainer_id;
+            const otherName = otherId ? (names.get(otherId) ?? "Member") : null;
+            const otherRole = iAmTrainer ? "Jockey" : "Trainer";
             const iCreated = r.created_by === user.id;
             const iAmTrainer = r.trainer_id === user.id;
             const threadId = threadByRequest.get(r.id);
@@ -179,7 +180,7 @@ export default async function RequestsPage({
                       </span>
                     </div>
                     <p className="mt-0.5 text-sm text-zinc-500">
-                      {otherRole}: <span className="font-medium text-zinc-700">{otherName}</span>
+                      {otherRole}: <span className="font-medium text-zinc-700">{otherName ?? "Not yet registered"}</span>
                       {meeting ? ` · ${meeting.track}` : ""}
                     </p>
                     {r.note ? (
