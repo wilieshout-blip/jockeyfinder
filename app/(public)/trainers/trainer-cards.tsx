@@ -6,6 +6,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { VerifiedBadge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+/** Strip NZTR title prefixes (Mr, Mrs, Ms, Miss, Dr, etc.) */
+function stripTitle(name: string | null): string | null {
+  if (!name) return name;
+  return name.replace(/^(Mr\.?|Mrs\.?|Ms\.?|Miss\.?|Dr\.?|Prof\.?|Rev\.?)\s+/i, "").trim();
+}
+
 export interface DirectoryTrainer {
   id: string;
   full_name: string | null;
@@ -28,10 +34,11 @@ interface Props {
 export function TrainerCards({ trainers, registry }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // Strip titles from NZTR names before building lookup so they match clean profile names
   const registryByName = new Map(
     registry
       .filter((r) => r.full_name)
-      .map((r) => [r.full_name.toLowerCase(), r])
+      .map((r) => [stripTitle(r.full_name)!.toLowerCase(), r])
   );
 
   return (
@@ -58,7 +65,7 @@ export function TrainerCards({ trainers, registry }: Props) {
             key={t.id}
             className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-card transition-shadow hover:shadow-lift"
           >
-            {/* Tappable header — whole collapsed surface is one button */}
+            {/* Tappable header - whole collapsed surface is one button */}
             <button
               type="button"
               onClick={() => setOpenId(isOpen ? null : t.id)}
@@ -66,7 +73,7 @@ export function TrainerCards({ trainers, registry }: Props) {
             >
               <Avatar src={t.profile_photo_url} name={t.full_name} size="lg" />
               <div className="min-w-0 flex-1">
-                {/* Name + verified badge + rotating chevron */}
+                {/* Name + verified + rotating chevron */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
