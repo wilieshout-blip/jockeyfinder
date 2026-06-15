@@ -2,7 +2,7 @@
  * app/api/results/sync/route.ts
  *
  * POST: sync results for one meeting by nztr_day_id
- * GET:  backfill last N days of past meetings
+ * GET: backfill last N days of past meetings (Vercel cron)
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,10 +10,20 @@ import { fetchAndSyncMeetingResults } from "@/lib/loveracing-results";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+function isAuthorized(req: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) return false;
+  const authHeader = req.headers.get("authorization");
+  if (authHeader === `Bearer ${cronSecret}`) return true;
+  const legacyHeader = req.headers.get("x-cron-secret");
+  if (legacyHeader === cronSecret) return true;
+  return false;
+}
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret");
-  if (!secret || secret !== process.env.CRON_SECRET)
+  if (!isAuthorized(req))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { nztr_day_id?: number } = {};
@@ -38,12 +48,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret");
-  if (!secret || secret !== process.env.CRON_SECRET)
+  if (!isAuthorized(req))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(req.url);
-  const days = parseInt(url.searchParams.get("backfill_days") ?? "14", 10);
+  const days = parseInt(url.searchParams.get("backfill_days") ?? "7", 10);
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = cutoff.toISOString().split("T")[0];
@@ -62,7 +71,7 @@ export async function GET(req: NextRequest) {
     if (!m.nztr_day_id) continue;
     const r = await fetchAndSyncMeetingResults(m.nztr_day_id, m.id, m.meeting_date);
     results.push({ nztr_day_id: m.nztr_day_id, date: m.meeting_date, ok: r.ok, count: r.results });
-    await new Promise(res => setTimeout(res, 300));
+    await new Promise(res => setTimeout(res, 400));
   }
   return NextResponse.json({ synced: results.length, results });
-    }
+}
