@@ -1,180 +1,132 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { SubscribeButton } from "./subscribe-button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardBody } from "@/components/ui/card";
-import type { Profile, Subscription } from "@/lib/types";
+"use client";
 
-function nzDate(iso: string | null) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString("en-NZ", {
-    timeZone: "Pacific/Auckland",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { BILLING_START_DATE, ROLE_PRICE_DISPLAY } from "@/lib/stripe";
+import { getAccessStatus, daysUntilTrialEnd } from "@/lib/subscription";
+import type { AccessStatus } from "@/lib/subscription";
+
+type SubRow = { status: string | null; stripe_subscription_id: string | null; trial_end: string | null; current_period_end: string | null; };
+
+function StatusBadge({ status }: { status: AccessStatus }) {
+  const map: Record<AccessStatus, { label: string; cls: string }> = {
+    free_period: { label: "Free period", cls: "bg-emerald-100 text-emerald-800" },
+    trialing:    { label: "Trial",       cls: "bg-blue-100 text-blue-800" },
+    active:      { label: "Active",      cls: "bg-green-100 text-green-800" },
+    past_due:    { label: "Past due",    cls: "bg-red-100 text-red-800" },
+    expired:     { label: "Expired",     cls: "bg-gray-100 text-gray-800" },
+  };
+  const { label, cls } = map[status] ?? map.expired;
+  return <span className={`px-2 py-1 rounded-full text-xs font-medium ${cls}`}>{label}</span>;
 }
 
-const STATUS_TONES: Record<string, "turf" | "amber" | "red" | "neutral"> = {
-  active: "turf",
-  trialing: "turf",
-  past_due: "amber",
-  canceled: "red",
-  unpaid: "red",
-};
+export default function BillingPage() {
+  const [role, setRole] = useState<string | null>(null);
+  const [trialStart, setTrialStart] = useState<string | null>(null);
+  const [sub, setSub] = useState<SubRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [subLoading, setSubLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
-export default async function BillingPage({
-  searchParams,
-}: {
-  searchParams: { status?: string };
-}) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const [{ data: p }, { data: s }] = await Promise.all([
+        supabase.from("profiles").select("role, trial_start_date").eq("id", user.id).single(),
+        supabase.from("subscriptions").select("status, stripe_subscription_id, trial_end, current_period_end").eq("user_id", user.id).single(),
+      ]);
+      setRole(p?.role ?? null);
+      setTrialStart(p?.trial_start_date ?? null);
+      setSub(s);
+      setLoading(false);
+    })();
+  }, []);
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
-  if (!me) redirect("/login");
+  const handleSubscribe = async () => {
+    setSubLoading(true);
+    const res = await fetch("/api/stripe/create-checkout-session", { method: "POST" });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else setSubLoading(false);
+  };
 
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle<Subscription>();
+  const handlePortal = async () => {
+    setPortalLoading(true);
+    const res = await fetch("/api/stripe/portal", { method: "POST" });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else setPortalLoading(false);
+  };
 
-  const hasActive =
-    sub?.status === "active" || sub?.status === "trialing";
+  if (loading) return <div className="p-8 text-gray-500">Loading billing info…</div>;
+  if (!role) return null;
+
+  const now = new Date();
+  const isFreePeriod = now < BILLING_START_DATE;
+  const isFreeRole = role === "agent" || role === "admin";
+  const price = ROLE_PRICE_DISPLAY[role] ?? "";
+  const accessStatus = getAccessStatus({ role, trialStartDate: trialStart, stripeStatus: sub?.status ?? null });
+  const daysLeft = daysUntilTrialEnd(role, trialStart);
+  const hasStripeSub = !!sub?.stripe_subscription_id;
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-turf-600">
-          Billing
-        </p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-          Your plan
-        </h1>
-      </div>
+    <div className="max-w-2xl mx-auto p-8">
+      <h1 className="text-2xl font-bold mb-6">Billing</h1>
 
-      {searchParams.status === "success" ? (
-        <div className="mb-4 rounded-2xl border border-turf-200 bg-turf-50 p-4 text-sm text-turf-800">
-          You are all set. Stripe will confirm your subscription in a moment;
-          refresh if the status below has not updated yet.
+      {isFreePeriod && (
+        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+          <p className="text-emerald-800 font-semibold">JockeyFinder is free until 1 October 2026</p>
+          <p className="text-emerald-700 text-sm mt-1">No credit card needed during the free period.</p>
         </div>
-      ) : null}
-      {searchParams.status === "cancelled" ? (
-        <div className="mb-4 rounded-2xl border border-line bg-mist p-4 text-sm text-zinc-600">
-          Checkout cancelled. No charge was made.
-        </div>
-      ) : null}
+      )}
 
-      {me.role === "jockey" ? (
-        <Card>
-          <CardBody className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+      {isFreeRole ? (
+        <div className="p-6 bg-gray-50 rounded-lg border">
+          <p className="font-semibold capitalize">{role} account</p>
+          <p className="text-gray-600 mt-1">Your account type is always free.</p>
+        </div>
+      ) : (
+        <>
+          <div className="p-6 border rounded-lg mb-6">
+            <div className="flex justify-between items-start mb-4">
               <div>
-                <h2 className="font-display text-lg font-semibold text-ink">
-                  Jockey membership
-                </h2>
-                <p className="text-sm text-zinc-500">
-                  Full access to ride requests, attendance, and messaging.
+                <p className="font-semibold capitalize">{role} plan</p>
+                <p className="text-gray-500 text-sm">{price}</p>
+              </div>
+              <StatusBadge status={accessStatus} />
+            </div>
+
+            {accessStatus === "trialing" && !hasStripeSub && daysLeft > 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm">
+                <p className="text-amber-800 font-medium">Trial ends in {daysLeft} day{daysLeft !== 1 ? "s" : ""}</p>
+                <p className="text-amber-700 mt-0.5">Add a payment method to keep access after your trial.</p>
+              </div>
+            )}
+            {(accessStatus === "past_due" || accessStatus === "expired") && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm">
+                <p className="text-red-800 font-medium">{accessStatus === "past_due" ? "Payment failed" : "Trial expired"}</p>
+                <p className="text-red-700 mt-0.5">
+                  {accessStatus === "past_due" ? "Update your payment method to restore access." : "Subscribe to regain access."}
                 </p>
               </div>
-              {sub?.status ? (
-                <Badge tone={STATUS_TONES[sub.status] ?? "neutral"} className="capitalize">
-                  {sub.status}
-                </Badge>
-              ) : (
-                <Badge tone="neutral">Not subscribed</Badge>
-              )}
-            </div>
-
-            <div className="rounded-xl bg-mist p-4">
-              <p className="font-display text-3xl font-semibold text-ink">
-                $40 <span className="text-base font-normal text-zinc-500">NZD / month</span>
-              </p>
-              <p className="mt-1 text-sm text-zinc-600">
-                Starts with a 100 day free trial. Cancel any time during the
-                trial and you will not be charged.
-              </p>
-            </div>
-
-            {hasActive ? (
-              <dl className="space-y-2 text-sm">
-                {sub?.trial_end && sub.status === "trialing" ? (
-                  <div className="flex justify-between">
-                    <dt className="text-zinc-500">Free trial ends</dt>
-                    <dd className="font-medium text-ink">{nzDate(sub.trial_end)}</dd>
-                  </div>
-                ) : null}
-                {sub?.current_period_end ? (
-                  <div className="flex justify-between">
-                    <dt className="text-zinc-500">Current period ends</dt>
-                    <dd className="font-medium text-ink">
-                      {nzDate(sub.current_period_end)}
-                    </dd>
-                  </div>
-                ) : null}
-                <p className="pt-2 text-xs text-zinc-500">
-                  Manage or cancel your subscription from the receipt emails
-                  Stripe sends you.
-                </p>
-              </dl>
-            ) : (
-              <SubscribeButton />
             )}
-          </CardBody>
-        </Card>
-      ) : null}
+          </div>
 
-      {me.role === "agent" ? (
-        <Card>
-          <CardBody className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-display text-lg font-semibold text-ink">
-                Agent membership
-              </h2>
-              {sub?.status === "active" ? (
-                <Badge tone="turf">Active</Badge>
-              ) : (
-                <Badge tone="neutral">Price on negotiation</Badge>
-              )}
-            </div>
-            <p className="text-sm text-zinc-600">
-              Agent pricing depends on how many jockeys you manage, so it is
-              agreed directly with the JockeyFinder team rather than through
-              self serve checkout. Once agreed, an admin activates your
-              account here.
-            </p>
-            <p className="text-sm text-zinc-600">
-              Get in touch via the email on your welcome message to set this up.
-            </p>
-          </CardBody>
-        </Card>
-      ) : null}
-
-      {me.role === "trainer" || me.role === "owner" ? (
-        <Card>
-          <CardBody>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-display text-lg font-semibold text-ink">
-                Free plan
-              </h2>
-              <Badge tone="turf">Included</Badge>
-            </div>
-            <p className="mt-2 text-sm text-zinc-600">
-              {me.role === "trainer"
-                ? "Trainer accounts are free. View attending jockeys, request rides, assign jockeys, and message them at no cost."
-                : "Owner accounts are free. Follow meetings, jockeys, and ride plans at no cost."}
-            </p>
-          </CardBody>
-        </Card>
-      ) : null}
+          {hasStripeSub ? (
+            <button onClick={handlePortal} disabled={portalLoading}
+              className="w-full py-3 px-6 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50">
+              {portalLoading ? "Opening…" : "Manage subscription →"}
+            </button>
+          ) : (
+            <button onClick={handleSubscribe} disabled={subLoading}
+              className="w-full py-3 px-6 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50">
+              {subLoading ? "Redirecting…" : `Subscribe — ${price}`}
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }
