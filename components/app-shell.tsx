@@ -37,15 +37,20 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   let paywallActive = false;
-  if (profile?.role === "jockey" && !isAdmin) {
+  if (["jockey", "trainer", "owner"].includes(profile?.role ?? "") && !isAdmin) {
     const { data: sub } = await supabase
       .from("subscriptions")
       .select("status")
       .eq("user_id", user.id)
       .maybeSingle<Subscription>();
-    if (sub && !["trialing", "active"].includes(sub.status ?? "")) {
-      paywallActive = true;
-    }
+    const accessStatus = getAccessStatus({
+          role: profile?.role ?? "",
+          trialStartDate: profile?.trial_start_date ?? null,
+          stripeStatus: sub?.status ?? null,
+        });
+        if (!canAccess(accessStatus)) {
+          paywallActive = true;
+        }
   }
 
   // Allow lapsed jockeys to still reach billing and profile so they can resubscribe.
@@ -72,7 +77,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-600">Subscription required</p>
             <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">Your free trial has ended</h1>
             <p className="mt-3 text-sm text-zinc-600">
-              JockeyFinder is {ROLE_PRICE_DISPLAY[profile?.role ?? ""] ?? ""} for jockeys after the free trial.
+              JockeyFinder is {ROLE_PRICE_DISPLAY[profile?.role ?? ""] ?? ""} after your free trial.
               Subscribe to continue accessing ride requests, attendance, and messaging.
             </p>
             <a href="/dashboard/billing" className="mt-5 inline-block rounded-full bg-turf-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-turf-700">
