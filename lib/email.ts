@@ -157,3 +157,42 @@ export async function emailRideAssigned(opts: {
     `)
   );
 }
+
+export async function emailTrialReminder({
+  to, firstName, role, daysLeft, trialEndDate,
+}: {
+  to: string;
+  firstName: string;
+  role: string;
+  daysLeft: number;
+  trialEndDate: Date;
+}) {
+  const prices: Record<string, string> = {
+    jockey: "$20 NZD/week",
+    trainer: "$5 NZD/week",
+    owner: "$2 NZD/week",
+  };
+  const price = prices[role] || "";
+  const planName = role.charAt(0).toUpperCase() + role.slice(1);
+  const dateStr = trialEndDate.toLocaleDateString("en-NZ", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+  const html = emailLayout(`
+    <h2 style="margin:0 0 16px">Your free trial ends in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}</h2>
+    <p>Hi ${firstName},</p>
+    <p>Your JockeyFinder free trial ends on <strong>${dateStr}</strong>.</p>
+    <p>After that, your ${planName} plan is <strong>${price}</strong>.</p>
+    <p>Add a card now to keep your access uninterrupted.</p>
+    <a href="${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing"
+       style="display:inline-block;background:#16a34a;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin:16px 0">
+      Manage Billing
+    </a>
+    <p style="color:#6b7280;font-size:14px;margin-top:24px">You can cancel anytime from your billing settings.</p>
+  `);
+  await resend.emails.send({
+    from: "JockeyFinder <noreply@jockeyfinder.com>",
+    to,
+    subject: `Your JockeyFinder trial ends in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`,
+    html,
+  });
+}
