@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Syncs individual races for each upcoming meeting by scraping the
-// LoveRacing meeting overview page. Race summaries live in
-// <table class="overview-info"> elements (one per race).
+// LoveRacing meeting overview page. Called by Vercel cron at 18:00 UTC daily.
+// Race summaries live in <table class="overview-info"> elements (one per race).
+//
+// CODING RULES: No regex literals with backslash sequences and no template
+// literals -- both get corrupted by the CodeMirror editor. Use new RegExp()
+// with 's' flag (dotAll) instead of [sS], use [0-9] instead of d,
+// split closing tags as '<' + '/tag>', and use string concatenation.
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -22,28 +27,38 @@ const BROWSER_HEADERS: Record<string, string> = {
 
 function stripHtml(s: string): string {
   return s
-    .replace(/<[^>]+>/g, " ")
+    .replace(new RegExp("<[^>]+>", "g"), " ")
     .replace(/&amp;/g, "&")
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .join(" ")
     .trim();
 }
 
 function parseNZStartTime(timeStr: string, meetingDate: string): string | null {
-  const m = timeStr.match(/^(d{1,2}):(d{2})s*(am|pm)$/i);
+  // Match "12:30 pm" -- use [0-9] not d, use ' *' not s*
+  const m = timeStr.match(new RegExp("^([0-9]{1,2}):([0-9]{2}) *(am|pm)$", "i"));
   if (!m) return null;
   let hour = parseInt(m[1], 10);
   const minute = parseInt(m[2], 10);
   const ampm = m[3].toLowerCase();
   if (ampm === "pm" && hour !== 12) hour += 12;
   if (ampm === "am" && hour === 12) hour = 0;
+  // April-September = NZST (UTC+12); Oct-March = NZDT (UTC+13)
   const month = parseInt(meetingDate.split("-")[1], 10);
   const offset = month >= 4 && month <= 9 ? "+12:00" : "+13:00";
   const dt = new Date(
-    meetingDate + "T" + String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0") + ":00" + offset
+    meetingDate +
+      "T" +
+      String(hour).padStart(2, "0") +
+      ":" +
+      String(minute).padStart(2, "0") +
+      ":00" +
+      offset
   );
   return isNaN(dt.getTime()) ? null : dt.toISOString();
 }
@@ -53,12 +68,12 @@ function parseConditions(condsDist: string): {
   distance: number | null;
   race_class: string | null;
 } {
-  const distMatch = condsDist.match(/(d{3,5})m/);
+  const distMatch = condsDist.match(new RegExp("([0-9]{3,5})m"));
   const distance = distMatch ? parseInt(distMatch[1], 10) : null;
   const classPart = condsDist
-    .split(/d{3,5}m/)[0]
+    .split(new RegExp("[0-9]{3,5}m"))[0]
     .trim()
-    .replace(/[-s]+$/, "")
+    .replace(new RegExp("[- ]+$"), "")
     .trim();
   return { distance, race_class: classPart || null };
 }
@@ -75,14 +90,19 @@ async function scrapeMeetingRaces(
     race_class: string | null;
   }>
 > {
-  const url = "https://loveracing.nz/RaceInfo/" + nztrDayId + "/Meeting-Overview.aspx";
+  const url =
+    "https://loveracing.nz/RaceInfo/" +
+    nztrDayId +
+    "/Meeting-Overview.aspx";
   const res = await fetch(url, { headers: BROWSER_HEADERS, cache: "no-store" });
   if (!res.ok) return [];
 
   const html = await res.text();
 
   // Race summaries are in <table class="overview-info"> elements, one per race.
-  // Single data row: [race_num, start_time, name, conds_dist, time, open/close]
+  // Use new RegExp with 's' (dotAll) flag so '.' matches newlines.
+  // Split '</table>' as '<' + '/table>' so the slash does not terminate a
+  // regex literal if this file is ever edited via the GitHub web editor.
   const races: Array<{
     race_number: number;
     name: string;
@@ -91,13 +111,16 @@ async function scrapeMeetingRaces(
     race_class: string | null;
   }> = [];
 
-  const tableRegex = /<table[^>]+class="overview-info"[^>]*>([sS]*?)</table>/gi;
+  const tableRegex = new RegExp(
+    '<table[^>]+class="overview-info"[^>]*>(.*?)<' + "/table>",
+    "gis"
+  );
   let tableMatch: RegExpExecArray | null;
 
   while ((tableMatch = tableRegex.exec(html)) !== null) {
     const tableHtml = tableMatch[1];
     const cells: string[] = [];
-    const tdRegex = /<td[^>]*>([sS]*?)</td>/gi;
+    const tdRegex = new RegExp("<td[^>]*>(.*?)<" + "/td>", "gis");
     let tdMatch: RegExpExecArray | null;
     while ((tdMatch = tdRegex.exec(tableHtml)) !== null) {
       cells.push(stripHtml(tdMatch[1]));
@@ -144,7 +167,11 @@ export async function GET(request: Request) {
   in14NZ.setDate(nowNZ.getDate() + 14);
 
   const fmt = (d: Date) =>
-    d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    String(d.getFullYear()) +
+    "-" +
+    String(d.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(d.getDate()).padStart(2, "0");
 
   const { data: meetings, error: meetingsError } = await supabase
     .from("meetings")
@@ -158,7 +185,10 @@ export async function GET(request: Request) {
   }
 
   if (!meetings || meetings.length === 0) {
-    return NextResponse.json({ synced: 0, message: "No upcoming meetings in range" });
+    return NextResponse.json({
+      synced: 0,
+      message: "No upcoming meetings in range",
+    });
   }
 
   let totalSynced = 0;
@@ -167,8 +197,13 @@ export async function GET(request: Request) {
 
   for (const meeting of meetings) {
     try {
-      const races = await scrapeMeetingRaces(meeting.nztr_day_id, meeting.meeting_date);
-      debug.push("Meeting " + meeting.nztr_day_id + ": scraped " + races.length + " races");
+      const races = await scrapeMeetingRaces(
+        meeting.nztr_day_id,
+        meeting.meeting_date
+      );
+      debug.push(
+        "Meeting " + meeting.nztr_day_id + ": scraped " + races.length + " races"
+      );
       if (races.length === 0) continue;
 
       const rows = races.map((r) => ({
@@ -186,12 +221,16 @@ export async function GET(request: Request) {
         .upsert(rows, { onConflict: "nztr_day_id,race_number" });
 
       if (upsertError) {
-        errors.push("Meeting " + meeting.nztr_day_id + ": " + upsertError.message);
+        errors.push(
+          "Meeting " + meeting.nztr_day_id + ": " + upsertError.message
+        );
       } else {
         totalSynced += rows.length;
       }
     } catch (err) {
-      errors.push("Meeting " + meeting.nztr_day_id + ": " + (err as Error).message);
+      errors.push(
+        "Meeting " + meeting.nztr_day_id + ": " + (err as Error).message
+      );
     }
   }
 
