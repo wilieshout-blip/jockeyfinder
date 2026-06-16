@@ -27,6 +27,7 @@ export interface Profile {
   id_document_path: string | null;
   id_document_uploaded_at: string | null;
   created_at: string;
+  trial_start_date?: string | null;
   updated_at: string;
 }
 
