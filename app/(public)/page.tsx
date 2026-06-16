@@ -208,7 +208,7 @@ export default function HomePage() {
               </Link>
             </div>
             <p className="mt-5 text-sm text-zinc-500">
-              Free for trainers and owners. Jockeys ride free for 100 days.
+              Trainers $5/week · Owners $2/week. Jockeys get 2 weeks free, then $20 NZD/week.
             </p>
           </div>
 
@@ -395,8 +395,8 @@ export default function HomePage() {
             Be on the platform before the spring carnivals
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-            Trainers and owners join free. Jockeys get a 100-day free trial,
-            then $40 a month. Agents are onboarded individually.
+            Trainers and owners join free. Jockeys get a 2-week free trial,
+            then $20 NZD/week. Agents are onboarded individually.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/signup" className={buttonClasses("accent", "lg")}>
