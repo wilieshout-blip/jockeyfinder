@@ -1,8 +1,24 @@
 {
   "crons": [
-    { "path": "/api/loveracing/sync", "schedule": "0 17 * * *" },
-    { "path": "/api/loveracing/sync-races", "schedule": "0 18 * * *" },
-    { "path": "/api/loveracing/sync-entries", "schedule": "30 18 * * *" },
-    { "path": "/api/chats/meeting-groups", "schedule": "0 6 * * *" }
+    {
+      "path": "/api/loveracing/sync",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/loveracing/sync-races",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/loveracing/sync-entries",
+      "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/chats/meeting-groups",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/trial-reminders",
+      "schedule": "0 20 * * *"
+    }
   ]
 }
