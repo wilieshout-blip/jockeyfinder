@@ -2,19 +2,25 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Syncs race entries for each upcoming meeting by scraping the
-// LoveRacing meeting overview page. Called manually or by cron after sync-races.
+// LoveRacing meeting overview page. Race entries live in
+// <table id="toggle-detail{N}" class="alternating-rows further-detail">
+// elements (one table per race). Owner detail rows are skipped.
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const NZ_HEADERS = {
+const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  Accept:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-NZ,en;q=0.9",
   Referer: "https://loveracing.nz/",
-  Origin: "https://loveracing.nz",
+  "sec-fetch-dest": "document",
+  "sec-fetch-mode": "navigate",
+  "sec-fetch-site": "same-origin",
 };
 
-/** Strip HTML tags and decode basic entities. */
 function stripHtml(s: string): string {
   return s
     .replace(/<[^>]+>/g, " ")
@@ -23,145 +29,13 @@ function stripHtml(s: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/\s+/g, " ")
+    .replace(/s+/g, " ")
     .trim();
 }
 
-/**
- * Find the inner HTML of a div whose opening tag contains `marker`.
- * Uses div-depth counting to find the matching closing tag.
- */
-function findDiv(
-  html: string,
-  marker: string,
-  fromIdx = 0
-): { inner: string; endIdx: number } | null {
-  const markerIdx = html.indexOf(marker, fromIdx);
-  if (markerIdx === -1) return null;
-
-  const divStart = html.lastIndexOf("<div", markerIdx);
-  if (divStart === -1) return null;
-
-  const openEnd = html.indexOf(">", divStart);
-  if (openEnd === -1) return null;
-
-  let depth = 1;
-  let i = openEnd + 1;
-  while (i < html.length && depth > 0) {
-    const o = html.indexOf("<div", i);
-    const c = html.indexOf("</div>", i);
-    if (c === -1) break;
-    if (o !== -1 && o < c) {
-      depth++;
-      i = o + 4;
-    } else {
-      depth--;
-      i = c + 6;
-    }
-  }
-
-  return {
-    inner: html.slice(openEnd + 1, depth === 0 ? i - 6 : i),
-    endIdx: i,
-  };
-}
-
-/**
- * Extract all non-header nztr-row div inner HTMLs from a section.
- * Header rows have class="nztr-row row-header" and are skipped.
- * Data rows have class="nztr-row" (exact — no extra classes).
- */
-function extractNztrRows(html: string): string[] {
-  const rows: string[] = [];
-  let fromIdx = 0;
-
-  while (true) {
-    const idx = html.indexOf('class="nztr-row"', fromIdx);
-    if (idx === -1) break;
-
-    const divStart = html.lastIndexOf("<div", idx);
-    if (divStart === -1) break;
-
-    const openEnd = html.indexOf(">", divStart);
-    if (openEnd === -1) break;
-
-    const openTag = html.slice(divStart, openEnd + 1);
-    if (openTag.includes("row-header")) {
-      fromIdx = openEnd + 1;
-      continue;
-    }
-
-    let depth = 1;
-    let i = openEnd + 1;
-    while (i < html.length && depth > 0) {
-      const o = html.indexOf("<div", i);
-      const c = html.indexOf("</div>", i);
-      if (c === -1) break;
-      if (o !== -1 && o < c) {
-        depth++;
-        i = o + 4;
-      } else {
-        depth--;
-        i = c + 6;
-      }
-    }
-
-    rows.push(html.slice(openEnd + 1, depth === 0 ? i - 6 : i));
-    fromIdx = depth === 0 ? i : html.length;
-  }
-
-  return rows;
-}
-
-/**
- * Extract text content of each top-level div child in a row's HTML.
- */
-function getCellTexts(rowHtml: string): string[] {
-  const texts: string[] = [];
-  let fromIdx = 0;
-
-  while (fromIdx < rowHtml.length) {
-    const divStart = rowHtml.indexOf("<div", fromIdx);
-    if (divStart === -1) break;
-
-    const openEnd = rowHtml.indexOf(">", divStart);
-    if (openEnd === -1) break;
-
-    let depth = 1;
-    let i = openEnd + 1;
-    while (i < rowHtml.length && depth > 0) {
-      const o = rowHtml.indexOf("<div", i);
-      const c = rowHtml.indexOf("</div>", i);
-      if (c === -1) break;
-      if (o !== -1 && o < c) {
-        depth++;
-        i = o + 4;
-      } else {
-        depth--;
-        i = c + 6;
-      }
-    }
-
-    texts.push(stripHtml(rowHtml.slice(openEnd + 1, depth === 0 ? i - 6 : i)));
-    fromIdx = depth === 0 ? i : rowHtml.length;
-  }
-
-  return texts;
-}
-
-/** Extract the text of the first <a> link in a string, falling back to stripped text. */
-function extractLinkText(html: string): string {
-  const m = html.match(/<a[^>]*>([^<]+)<\/a>/i);
-  if (m) return m[1].trim();
-  return stripHtml(html)
-    .replace(/\s*\([^)]*\)\s*/g, " ")
-    .trim();
-}
-
-/** Strip apprentice claim suffix: "Amber Riddell (a1/54kg)" → "Amber Riddell" */
 function cleanJockeyName(raw: string): string | null {
   if (!raw || raw === "-") return null;
-  return raw.replace(/\s*\([^)]+\)\s*$/, "").trim() || null;
+  return raw.replace(/s*([^)]+)s*$/, "").trim() || null;
 }
 
 interface EntryRow {
@@ -175,59 +49,87 @@ interface EntryRow {
   rating: number | null;
 }
 
-/** Parse all race entries from the LoveRacing meeting overview HTML. */
+/**
+ * Parse race entries from a LoveRacing meeting overview HTML.
+ *
+ * The page has two formats depending on race state:
+ *   Pre-race: [#, Silk, Horse, Barrier, Weight, Jockey, Trainer, ...]
+ *   Results:  [#, Silk, Horse, Jockey, Trainer, Win, Place, Lgth]
+ *
+ * Format is detected by checking whether cells[3] is a small integer (barrier).
+ * Owner/detail rows (colspan) are skipped because cells[0] won't parse as a
+ * valid horse number (1-30).
+ */
 function scrapeEntries(html: string): EntryRow[] {
   const allEntries: EntryRow[] = [];
 
-  for (let raceNum = 1; raceNum <= 12; raceNum++) {
-    const toggleSection = findDiv(html, `id="toggle-detail${raceNum}"`);
-    if (!toggleSection) break;
+  const tableRegex =
+    /<table[^>]+id="toggle-detail(d+)"[^>]*>([sS]*?)</table>/gi;
+  let tableMatch: RegExpExecArray | null;
 
-    const horsesSection = findDiv(toggleSection.inner, 'class="horses"');
-    if (!horsesSection) continue;
+  while ((tableMatch = tableRegex.exec(html)) !== null) {
+    const raceNum = parseInt(tableMatch[1], 10);
+    if (isNaN(raceNum) || raceNum < 1 || raceNum > 30) continue;
+    const tableHtml = tableMatch[2];
 
-    const rowsSection = findDiv(horsesSection.inner, 'class="rows"');
-    if (!rowsSection) continue;
+    const rowRegex = /<tr[^>]*>([sS]*?)</tr>/gi;
+    let rowMatch: RegExpExecArray | null;
 
-    const horseRows = extractNztrRows(rowsSection.inner);
+    while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
+      const rowHtml = rowMatch[1];
 
-    const horseDetails = findDiv(toggleSection.inner, 'class="horse-details"');
-    if (!horseDetails) continue;
+      // Skip header rows
+      if (/<th/i.test(rowHtml)) continue;
 
-    const tabContent = findDiv(horseDetails.inner, 'class="tab-content"');
-    if (!tabContent) continue;
+      // Extract td text
+      const cells: string[] = [];
+      const tdRegex = /<td[^>]*>([sS]*?)</td>/gi;
+      let tdMatch: RegExpExecArray | null;
+      while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
+        cells.push(stripHtml(tdMatch[1]));
+      }
 
-    const detailRows = extractNztrRows(tabContent.inner);
+      if (cells.length < 3) continue;
 
-    const count = Math.min(horseRows.length, detailRows.length);
+      // cells[0] must be a horse number (1-30); owner rows fail this check
+      const horseNum = parseInt(cells[0], 10);
+      if (isNaN(horseNum) || horseNum < 1 || horseNum > 30) continue;
 
-    for (let j = 0; j < count; j++) {
-      const horseCells = getCellTexts(horseRows[j]);
-      const horseNum = parseInt(horseCells[0] ?? "", 10) || null;
+      const horseName = cells[2];
+      if (!horseName || horseName.length < 2) continue;
 
-      const colHorse = findDiv(horseRows[j], 'class="col col-horse"');
-      const horseName = colHorse
-        ? extractLinkText(colHorse.inner)
-        : (horseCells[3] ?? "").split("(")[0].trim();
+      let barrier: number | null = null;
+      let weight: number | null = null;
+      let jockeyName: string | null = null;
+      let trainerName: string | null = null;
 
-      if (!horseName) continue;
-
-      const detailCells = getCellTexts(detailRows[j]);
-      const barrier = parseInt(detailCells[0] ?? "", 10) || null;
-      const rating = parseInt(detailCells[1] ?? "", 10) || null;
-      const weight = parseFloat(detailCells[2] ?? "") || null;
-      const jockeyRaw = detailCells[3] ?? "";
-      const trainerRaw = detailCells[4] ?? "";
+      // Detect pre-race format: cells[3] is a small integer (barrier 1-30)
+      const cells3Num = parseFloat(cells[3] ?? "");
+      if (
+        !isNaN(cells3Num) &&
+        cells3Num >= 1 &&
+        cells3Num <= 30 &&
+        cells.length >= 6
+      ) {
+        barrier = parseInt(cells[3], 10) || null;
+        weight = parseFloat(cells[4]) || null;
+        jockeyName = cleanJockeyName(cells[5] ?? "");
+        trainerName = cells[6] && cells[6] !== "-" ? cells[6].trim() : null;
+      } else {
+        // Results format: Jockey in cells[3], Trainer in cells[4]
+        jockeyName = cleanJockeyName(cells[3] ?? "");
+        trainerName = cells[4] && cells[4] !== "-" ? cells[4].trim() : null;
+      }
 
       allEntries.push({
         race_number: raceNum,
         horse_number: horseNum,
         horse_name: horseName,
         barrier,
-        rating: isNaN(rating as number) ? null : rating,
-        weight: isNaN(weight as number) ? null : weight,
-        jockey_name: cleanJockeyName(jockeyRaw),
-        trainer_name: trainerRaw && trainerRaw !== "-" ? trainerRaw.trim() : null,
+        weight,
+        rating: null,
+        jockey_name: jockeyName,
+        trainer_name: trainerName,
       });
     }
   }
@@ -239,7 +141,7 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (
     process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
+    authHeader !== "Bearer " + process.env.CRON_SECRET
   ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -253,7 +155,7 @@ export async function GET(request: Request) {
   in14NZ.setDate(nowNZ.getDate() + 14);
 
   const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 
   const { data: meetings, error: meetingsError } = await supabase
     .from("meetings")
@@ -272,6 +174,7 @@ export async function GET(request: Request) {
 
   let totalSynced = 0;
   const errors: string[] = [];
+  const debug: string[] = [];
 
   for (const meeting of meetings) {
     try {
@@ -284,15 +187,16 @@ export async function GET(request: Request) {
         (races ?? []).map((r) => [r.race_number as number, r.id as string])
       );
 
-      const url = `https://loveracing.nz/RaceInfo/${meeting.nztr_day_id}/Meeting-Overview.aspx`;
-      const res = await fetch(url, { headers: NZ_HEADERS, cache: "no-store" });
+      const url = "https://loveracing.nz/RaceInfo/" + meeting.nztr_day_id + "/Meeting-Overview.aspx";
+      const res = await fetch(url, { headers: BROWSER_HEADERS, cache: "no-store" });
       if (!res.ok) {
-        errors.push(`Meeting ${meeting.nztr_day_id}: HTTP ${res.status}`);
+        errors.push("Meeting " + meeting.nztr_day_id + ": HTTP " + res.status);
         continue;
       }
 
       const html = await res.text();
       const entries = scrapeEntries(html);
+      debug.push("Meeting " + meeting.nztr_day_id + ": scraped " + entries.length + " entries");
 
       if (entries.length === 0) continue;
 
@@ -316,18 +220,19 @@ export async function GET(request: Request) {
         .upsert(rows, { onConflict: "nztr_day_id,race_number,horse_name" });
 
       if (upsertError) {
-        errors.push(`Meeting ${meeting.nztr_day_id}: ${upsertError.message}`);
+        errors.push("Meeting " + meeting.nztr_day_id + ": " + upsertError.message);
       } else {
         totalSynced += rows.length;
       }
     } catch (err) {
-      errors.push(`Meeting ${meeting.nztr_day_id}: ${(err as Error).message}`);
+      errors.push("Meeting " + meeting.nztr_day_id + ": " + (err as Error).message);
     }
   }
 
   return NextResponse.json({
     synced: totalSynced,
     meetings: meetings.length,
+    debug,
     errors: errors.length > 0 ? errors : undefined,
   });
 }
