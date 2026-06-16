@@ -297,7 +297,7 @@ export default function HomePage() {
           <div className="grid gap-5 md:grid-cols-3">
             {steps.map((s, i) => (
               <div key={s.title} className="rounded-2xl border border-line bg-paper p-6">
-                <ClothChip tone={i === 2 ? "turf" : "ink"}>{i + 1}</ClothChip>
+                <ClothChip tone="ink">{i + 1}</ClothChip>
                 <h3 className="mt-4 font-display text-base font-semibold text-ink">
                   {s.title}
                 </h3>
