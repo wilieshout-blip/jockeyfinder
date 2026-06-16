@@ -4,10 +4,9 @@ export const fetchCache = "force-no-store";
 
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { EmptyState } from "@/components/ui/empty";
-import { RegistryPeople } from "@/components/registry-people";
-import { TrainerCards } from "./trainer-cards";
+import { TrainerDirectory } from "./trainer-directory";
 import type { DirectoryTrainer, RegistryTrainer } from "./trainer-cards";
+import type { RegistryPerson } from "@/components/registry-people-list";
 
 export const metadata: Metadata = {
   title: "Trainers | JockeyFinder",
@@ -25,12 +24,18 @@ export default async function TrainersPage() {
     .order("full_name", { ascending: true })
     .returns<DirectoryTrainer[]>();
 
-  // Fetch NZTR registry location data for the expansion panel
   const { data: registry } = await supabase
     .from("nztr_people_registry")
     .select("full_name, location")
     .eq("role", "trainer")
     .returns<RegistryTrainer[]>();
+
+  const { data: registryRaw } = await supabase
+    .from("public_registry_people")
+    .select("id, full_name, location, phone")
+    .eq("role", "trainer")
+    .order("full_name", { ascending: true })
+    .returns<RegistryPerson[]>();
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
@@ -47,16 +52,11 @@ export default async function TrainersPage() {
         </p>
       </div>
 
-      {trainers && trainers.length > 0 ? (
-        <TrainerCards trainers={trainers} registry={registry ?? []} />
-      ) : (
-        <EmptyState title="No verified trainers yet">
-          Trainers are verified automatically when their phone number matches
-          the NZTR registry. Sign up as a trainer to appear here.
-        </EmptyState>
-      )}
-
-      <RegistryPeople role="trainer" signupLabel="I am a trainer, sign me up" />
+      <TrainerDirectory
+        trainers={trainers ?? []}
+        registry={registry ?? []}
+        registryPeople={registryRaw ?? []}
+      />
     </div>
   );
 }
