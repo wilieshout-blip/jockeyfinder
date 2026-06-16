@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Syncs race entries for each upcoming meeting by scraping the
-// LoveRacing meeting overview page. Race entries live in
-// <table id="toggle-detail{N}" class="alternating-rows further-detail">
-// elements (one table per race). Owner detail rows are skipped.
+// LoveRacing meeting overview page. Called by cron after sync-races.
+// Entries live in <table id="toggle-detail{N}" class="alternating-rows further-detail">
+// elements -- confirmed via browser inspection (tagName === "TABLE").
+//
+// CODING RULES: No regex literals with backslash sequences and no template
+// literals -- both get corrupted by the CodeMirror editor. Use new RegExp()
+// with 's' flag (dotAll) instead of [sS], use [0-9] instead of d,
+// split closing tags as '<' + '/tag>', and use string concatenation.
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -23,19 +28,16 @@ const BROWSER_HEADERS: Record<string, string> = {
 
 function stripHtml(s: string): string {
   return s
-    .replace(/<[^>]+>/g, " ")
+    .replace(new RegExp("<[^>]+>", "g"), " ")
     .replace(/&amp;/g, "&")
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .join(" ")
     .trim();
-}
-
-function cleanJockeyName(raw: string): string | null {
-  if (!raw || raw === "-") return null;
-  return raw.replace(/s*([^)]+)s*$/, "").trim() || null;
 }
 
 interface EntryRow {
@@ -50,86 +52,97 @@ interface EntryRow {
 }
 
 /**
- * Parse race entries from a LoveRacing meeting overview HTML.
+ * Parse all race entries from the LoveRacing meeting overview HTML.
  *
- * The page has two formats depending on race state:
- *   Pre-race: [#, Silk, Horse, Barrier, Weight, Jockey, Trainer, ...]
- *   Results:  [#, Silk, Horse, Jockey, Trainer, Win, Place, Lgth]
+ * HTML structure (confirmed via browser):
+ *   <table id="toggle-detail1" class="alternating-rows further-detail">
+ *     <tr><th>...</th>...</tr>   <- header, skip
+ *     <tr><td>1</td><td>Horse</td>...</tr>
  *
- * Format is detected by checking whether cells[3] is a small integer (barrier).
- * Owner/detail rows (colspan) are skipped because cells[0] won't parse as a
- * valid horse number (1-30).
+ * Pre-race columns: [0]=num [1]=horse [2]=? [3]=barrier [4]=weight [5]=jockey [6]=trainer
+ * Results columns:  [0]=pos [1]=horse [2]=? [3]=jockey  [4]=trainer
+ * Detect format: col[3] is a small int (1-30) => pre-race, else => results.
  */
 function scrapeEntries(html: string): EntryRow[] {
   const allEntries: EntryRow[] = [];
 
-  const tableRegex =
-    /<table[^>]+id="toggle-detail(d+)"[^>]*>([sS]*?)</table>/gi;
+  // Use 's' (dotAll) flag so '.' matches newlines.
+  // Split '</table>' so the '/' does not terminate a regex literal.
+  const tableRegex = new RegExp(
+    '<table[^>]+id="toggle-detail([0-9]+)"[^>]*>(.*?)<' + "/table>",
+    "gis"
+  );
   let tableMatch: RegExpExecArray | null;
 
   while ((tableMatch = tableRegex.exec(html)) !== null) {
     const raceNum = parseInt(tableMatch[1], 10);
-    if (isNaN(raceNum) || raceNum < 1 || raceNum > 30) continue;
-    const tableHtml = tableMatch[2];
+    if (isNaN(raceNum) || raceNum < 1 || raceNum > 20) continue;
 
-    const rowRegex = /<tr[^>]*>([sS]*?)</tr>/gi;
+    const tableBody = tableMatch[2];
+
+    const rowRegex = new RegExp("<tr[^>]*>(.*?)<" + "/tr>", "gis");
     let rowMatch: RegExpExecArray | null;
 
-    while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
+    while ((rowMatch = rowRegex.exec(tableBody)) !== null) {
       const rowHtml = rowMatch[1];
 
       // Skip header rows
-      if (/<th/i.test(rowHtml)) continue;
+      if (new RegExp("<th", "i").test(rowHtml)) continue;
 
-      // Extract td text
       const cells: string[] = [];
-      const tdRegex = /<td[^>]*>([sS]*?)</td>/gi;
+      const tdRegex = new RegExp("<td[^>]*>(.*?)<" + "/td>", "gis");
       let tdMatch: RegExpExecArray | null;
       while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
         cells.push(stripHtml(tdMatch[1]));
       }
 
-      if (cells.length < 3) continue;
+      if (cells.length < 4) continue;
 
-      // cells[0] must be a horse number (1-30); owner rows fail this check
-      const horseNum = parseInt(cells[0], 10);
-      if (isNaN(horseNum) || horseNum < 1 || horseNum > 30) continue;
+      // First cell must be a valid horse/position number (1-30)
+      const col0 = parseInt(cells[0], 10);
+      if (isNaN(col0) || col0 < 1 || col0 > 30) continue;
 
-      const horseName = cells[2];
-      if (!horseName || horseName.length < 2) continue;
+      const horseName = (cells[1] ?? "").trim();
+      if (!horseName) continue;
 
       let barrier: number | null = null;
       let weight: number | null = null;
       let jockeyName: string | null = null;
       let trainerName: string | null = null;
+      const rating: number | null = null;
 
-      // Detect pre-race format: cells[3] is a small integer (barrier 1-30)
-      const cells3Num = parseFloat(cells[3] ?? "");
-      if (
-        !isNaN(cells3Num) &&
-        cells3Num >= 1 &&
-        cells3Num <= 30 &&
-        cells.length >= 6
-      ) {
-        barrier = parseInt(cells[3], 10) || null;
-        weight = parseFloat(cells[4]) || null;
-        jockeyName = cleanJockeyName(cells[5] ?? "");
-        trainerName = cells[6] && cells[6] !== "-" ? cells[6].trim() : null;
+      // Pre-race: col[3] = barrier (small int 1-30)
+      const col3 = parseFloat(cells[3] ?? "");
+      if (!isNaN(col3) && col3 >= 1 && col3 <= 30) {
+        barrier = Math.round(col3);
+        const w = parseFloat(cells[4] ?? "");
+        weight = isNaN(w) ? null : w;
+        jockeyName = (cells[5] ?? "").trim() || null;
+        trainerName = (cells[6] ?? "").trim() || null;
       } else {
-        // Results format: Jockey in cells[3], Trainer in cells[4]
-        jockeyName = cleanJockeyName(cells[3] ?? "");
-        trainerName = cells[4] && cells[4] !== "-" ? cells[4].trim() : null;
+        // Results format
+        jockeyName = (cells[3] ?? "").trim() || null;
+        trainerName = (cells[4] ?? "").trim() || null;
+      }
+
+      // Strip jockey claim suffix "Amber Riddell (a1/54kg)" -> "Amber Riddell"
+      // Use [(] and [)] character classes to avoid backslash sequences.
+      if (jockeyName) {
+        jockeyName =
+          jockeyName
+            .replace(new RegExp(" *[(][^)]+[)]$"), "")
+            .trim() || null;
       }
 
       allEntries.push({
         race_number: raceNum,
-        horse_number: horseNum,
+        horse_number: col0,
         horse_name: horseName,
         barrier,
         weight,
-        rating: null,
         jockey_name: jockeyName,
         trainer_name: trainerName,
+        rating,
       });
     }
   }
@@ -155,7 +168,11 @@ export async function GET(request: Request) {
   in14NZ.setDate(nowNZ.getDate() + 14);
 
   const fmt = (d: Date) =>
-    d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    String(d.getFullYear()) +
+    "-" +
+    String(d.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(d.getDate()).padStart(2, "0");
 
   const { data: meetings, error: meetingsError } = await supabase
     .from("meetings")
@@ -169,7 +186,10 @@ export async function GET(request: Request) {
   }
 
   if (!meetings || meetings.length === 0) {
-    return NextResponse.json({ synced: 0, message: "No upcoming meetings in range" });
+    return NextResponse.json({
+      synced: 0,
+      message: "No upcoming meetings in range",
+    });
   }
 
   let totalSynced = 0;
@@ -187,16 +207,31 @@ export async function GET(request: Request) {
         (races ?? []).map((r) => [r.race_number as number, r.id as string])
       );
 
-      const url = "https://loveracing.nz/RaceInfo/" + meeting.nztr_day_id + "/Meeting-Overview.aspx";
-      const res = await fetch(url, { headers: BROWSER_HEADERS, cache: "no-store" });
+      const url =
+        "https://loveracing.nz/RaceInfo/" +
+        meeting.nztr_day_id +
+        "/Meeting-Overview.aspx";
+      const res = await fetch(url, {
+        headers: BROWSER_HEADERS,
+        cache: "no-store",
+      });
       if (!res.ok) {
-        errors.push("Meeting " + meeting.nztr_day_id + ": HTTP " + res.status);
+        errors.push(
+          "Meeting " + meeting.nztr_day_id + ": HTTP " + res.status
+        );
         continue;
       }
 
       const html = await res.text();
       const entries = scrapeEntries(html);
-      debug.push("Meeting " + meeting.nztr_day_id + ": scraped " + entries.length + " entries");
+
+      debug.push(
+        "Meeting " +
+          meeting.nztr_day_id +
+          ": scraped " +
+          entries.length +
+          " entries"
+      );
 
       if (entries.length === 0) continue;
 
@@ -220,12 +255,16 @@ export async function GET(request: Request) {
         .upsert(rows, { onConflict: "nztr_day_id,race_number,horse_name" });
 
       if (upsertError) {
-        errors.push("Meeting " + meeting.nztr_day_id + ": " + upsertError.message);
+        errors.push(
+          "Meeting " + meeting.nztr_day_id + ": " + upsertError.message
+        );
       } else {
         totalSynced += rows.length;
       }
     } catch (err) {
-      errors.push("Meeting " + meeting.nztr_day_id + ": " + (err as Error).message);
+      errors.push(
+        "Meeting " + meeting.nztr_day_id + ": " + (err as Error).message
+      );
     }
   }
 
