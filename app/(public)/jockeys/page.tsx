@@ -4,11 +4,10 @@ export const fetchCache = "force-no-store";
 
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { EmptyState } from "@/components/ui/empty";
-import { RegistryPeople } from "@/components/registry-people";
 import { nzToday, nzDatePlusDays } from "@/lib/utils";
-import { JockeyCards } from "./jockey-cards";
+import { JockeyDirectory } from "./jockey-directory";
 import type { DirectoryJockey, JockeyStat } from "./jockey-cards";
+import type { RegistryPerson } from "@/components/registry-people-list";
 
 export const metadata: Metadata = {
   title: "Jockeys | JockeyFinder",
@@ -27,32 +26,34 @@ export default async function JockeysPage() {
     .eq("role", "jockey")
     .order("full_name", { ascending: true });
 
-  // Agent phones: jockey_id -> agent phone
+  // Agent phones and names
   const jockeyIds = (jockeysRaw ?? []).map((j: any) => j.id);
   const agentPhoneMap: Record<string, string> = {};
+  const agentNameMap: Record<string, string> = {};
   if (jockeyIds.length > 0) {
     const { data: agentLinks } = await supabase
       .from("agent_jockeys")
-      .select("jockey_id, agent:profiles!agent_id(phone)")
+      .select("jockey_id, agent:profiles!agent_id(full_name, phone)")
       .in("jockey_id", jockeyIds);
     for (const link of agentLinks ?? []) {
       const agentPhone = (link as any).agent?.phone;
-      if (agentPhone) agentPhoneMap[link.jockey_id] = agentPhone;
+      const agentName = (link as any).agent?.full_name;
+      if (agentPhone) agentPhoneMap[(link as any).jockey_id] = agentPhone;
+      if (agentName) agentNameMap[(link as any).jockey_id] = agentName;
     }
   }
 
   const jockeys: DirectoryJockey[] = (jockeysRaw ?? []).map((j: any) => ({
     ...j,
     agent_phone: agentPhoneMap[j.id] ?? null,
+    agent_name: agentNameMap[j.id] ?? null,
   }));
 
-  // Season stats - keyed by jockey_name for matching
   const { data: statsRows } = await supabase
     .from("jockey_season_stats")
     .select("jockey_name, total_rides, wins, places, win_pct")
     .returns<JockeyStat[]>();
 
-  // Count upcoming meetings each jockey is attending (next 30 days)
   const counts: Record<string, number> = {};
   const { data: upcoming } = await supabase
     .from("meetings")
@@ -71,6 +72,13 @@ export default async function JockeysPage() {
     }
   }
 
+  const { data: registryRaw } = await supabase
+    .from("public_registry_people")
+    .select("id, full_name, location, phone")
+    .eq("role", "jockey")
+    .order("full_name", { ascending: true })
+    .returns<RegistryPerson[]>();
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <div className="mb-8">
@@ -86,20 +94,12 @@ export default async function JockeysPage() {
         </p>
       </div>
 
-      {jockeys.length > 0 ? (
-        <JockeyCards
-          jockeys={jockeys}
-          stats={statsRows ?? []}
-          counts={counts}
-        />
-      ) : (
-        <EmptyState title="No verified jockeys yet">
-          Jockeys appear here once their profile has been verified. If you are
-          a jockey, sign up and complete your profile to get verified.
-        </EmptyState>
-      )}
-
-      <RegistryPeople role="jockey" signupLabel="I am a jockey, sign me up" />
+      <JockeyDirectory
+        jockeys={jockeys}
+        stats={statsRows ?? []}
+        counts={counts}
+        registryPeople={registryRaw ?? []}
+      />
     </div>
   );
 }
