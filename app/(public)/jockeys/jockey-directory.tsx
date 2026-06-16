@@ -132,21 +132,3 @@ export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Prop
                                               </div>
                         );
 }
-                                                                                                                                                                                                              )
-                                                                                                                                                                                                              )}
-                                          )}
-                                    )
-                                    )})}
-                                                                          ))}
-                                                  )}
-                                  )})}
-                                                        ))}
-                        )
-          }
-}
-}
-}
-}
-        ]
-      ]
-}
