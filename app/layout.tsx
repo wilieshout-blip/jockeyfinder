@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { FreeUntilBanner } from "@/components/ui/free-until-banner";
 
 const sans = Inter({
   subsets: ["latin"],
@@ -31,7 +32,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en-NZ" className={`${sans.variable} ${display.variable}`}>
-      <body>{children}</body>
+      <body><FreeUntilBanner />
+        {children}</body>
     </html>
   );
 }
