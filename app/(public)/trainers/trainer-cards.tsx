@@ -19,6 +19,11 @@ export interface DirectoryTrainer {
   bio: string | null;
   base_region: string | null;
   country: string | null;
+  preferred_tracks: string | null;
+  created_at: string;
+  runner_count?: number;
+  upcoming_runner_count?: number;
+  last_seen_date?: string | null;
 }
 
 export interface RegistryTrainer {
@@ -59,6 +64,12 @@ export function TrainerCards({ trainers, registry }: Props) {
           t.base_region ||
           nztrLocation ||
           (t.country && t.country !== "NZ" && t.country !== "New Zealand");
+        const verifiedSince = t.created_at
+          ? new Date(t.created_at).toLocaleDateString("en-NZ", {
+              month: "short",
+              year: "numeric",
+            })
+          : null;
 
         return (
           <article
@@ -111,6 +122,11 @@ export function TrainerCards({ trainers, registry }: Props) {
                     {t.bio ? (
                       <p className="line-clamp-2 text-sm text-zinc-600">{t.bio}</p>
                     ) : null}
+                    {t.preferred_tracks ? (
+                      <p className="truncate text-xs text-zinc-500">
+                        Prefers {t.preferred_tracks}
+                      </p>
+                    ) : null}
                     <p className="text-xs text-zinc-400">Tap to expand</p>
                   </div>
                 )}
@@ -157,6 +173,58 @@ export function TrainerCards({ trainers, registry }: Props) {
                     ) : null}
                   </div>
                 ) : null}
+
+                <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-white text-sm">
+                  {t.runner_count || t.upcoming_runner_count ? (
+                    <div className="grid gap-0 sm:grid-cols-3 sm:divide-x sm:divide-line">
+                      <div className="px-3 py-2">
+                        <span className="block text-xs text-zinc-400">
+                          Race-card runners
+                        </span>
+                        <span className="font-semibold text-ink">
+                          {t.runner_count ?? 0}
+                        </span>
+                      </div>
+                      <div className="px-3 py-2">
+                        <span className="block text-xs text-zinc-400">
+                          Upcoming
+                        </span>
+                        <span className="font-semibold text-ink">
+                          {t.upcoming_runner_count ?? 0}
+                        </span>
+                      </div>
+                      <div className="px-3 py-2">
+                        <span className="block text-xs text-zinc-400">
+                          Last seen
+                        </span>
+                        <span className="font-semibold text-ink">
+                          {t.last_seen_date
+                            ? new Date(t.last_seen_date + "T12:00:00").toLocaleDateString("en-NZ", {
+                                day: "numeric",
+                                month: "short",
+                              })
+                            : "-"}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+                  {t.preferred_tracks ? (
+                    <div className="flex items-center gap-3 px-3 py-2">
+                      <span className="w-28 shrink-0 text-xs text-zinc-400">
+                        Tracks
+                      </span>
+                      <span className="text-zinc-700">{t.preferred_tracks}</span>
+                    </div>
+                  ) : null}
+                  {verifiedSince ? (
+                    <div className="flex items-center gap-3 px-3 py-2">
+                      <span className="w-28 shrink-0 text-xs text-zinc-400">
+                        Verified
+                      </span>
+                      <span className="text-zinc-700">{verifiedSince}</span>
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="flex justify-end pt-1">
                   <Link

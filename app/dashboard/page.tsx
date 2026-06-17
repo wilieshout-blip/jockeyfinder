@@ -10,10 +10,12 @@ import { QuickWeightForm } from "@/components/quick-weight-form";
 import { IdUploadForm } from "@/components/id-upload-form";
 import { HorsePreloadWizard } from "@/components/horse-preload-wizard";
 import { TrainerHorses } from "@/components/trainer-horses";
+import { OwnerHorseClaim } from "@/components/owner-horse-claim";
 import {
   REQUEST_STATUS_STYLES,
   cn,
   formatClaim,
+  formatMeetingDate,
   isAdminEmail,
   nzToday,
   nzDatePlusDays,
@@ -144,6 +146,47 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false });
     ownerHorseLinks = data ?? [];
   }
+
+  let ownerHorseClaims: any[] = [];
+  let ownerUpcomingRunners: any[] = [];
+  if (profile.role === "owner") {
+    const { data: claims } = await supabase
+      .from("owner_horse_claims")
+      .select(
+        "id, race_entry_id, status, race_entries(id, horse_name, race_number, jockey_name, trainer_name, owner_text, meetings(meeting_date, track))"
+      )
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    ownerHorseClaims = claims ?? [];
+
+    const linkedHorseNames = ownerHorseLinks
+      .map((link) => link.horses?.name)
+      .filter(Boolean) as string[];
+
+    if (linkedHorseNames.length > 0) {
+      const { data: runners } = await supabase
+        .from("race_entries")
+        .select(
+          "id, race_number, horse_number, horse_name, jockey_name, trainer_name, barrier, weight, meetings!inner(id, meeting_date, track, club), races(name, distance, race_class, start_time)"
+        )
+        .in("horse_name", linkedHorseNames)
+        .gte("meetings.meeting_date", nzToday())
+        .limit(20);
+
+      ownerUpcomingRunners = (runners ?? [])
+        .sort((a: any, b: any) => {
+          const aDate = a.meetings?.meeting_date ?? "";
+          const bDate = b.meetings?.meeting_date ?? "";
+          if (aDate !== bDate) return aDate.localeCompare(bDate);
+          return Number(a.race_number ?? 0) - Number(b.race_number ?? 0);
+        })
+        .slice(0, 6);
+    }
+  }
+
+  const ownerConfirmedLinks = ownerHorseLinks.filter((link) => link.status === "confirmed");
+  const ownerPendingLinks = ownerHorseLinks.filter((link) => link.status === "pending");
 
   return (
     <div className="space-y-6">
@@ -283,7 +326,125 @@ export default async function DashboardPage() {
 
       {profile.role === "owner" ? (
         <>
+          <section className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+            <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="border-b border-line p-5 sm:p-6 lg:border-b-0 lg:border-r">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-turf-600">
+                  Owner race room
+                </p>
+                <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
+                  Your stable at a glance
+                </h2>
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-600">
+                  Track linked horses, confirm ownership matches from race cards,
+                  and see upcoming runners without hunting through the public pages.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  {[
+                    ["Linked horses", ownerConfirmedLinks.length],
+                    ["Waiting approval", ownerPendingLinks.length],
+                    ["Race-card matches", ownerHorseClaims.length],
+                  ].map(([label, value]) => (
+                    <div key={label as string} className="rounded-xl border border-line bg-paper p-4">
+                      <p className="font-display text-2xl font-semibold text-ink">
+                        {value as number}
+                      </p>
+                      <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-zinc-400">
+                        {label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-ink p-5 text-white sm:p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-turf-200">
+                  Fast actions
+                </p>
+                <div className="mt-4 space-y-2">
+                  {[
+                    { href: "/meetings", title: "Open race meetings", blurb: "Race cards, runners and attending riders." },
+                    { href: "/trainers", title: "Find trainer details", blurb: "Stable contacts, regions and runners." },
+                    { href: "/dashboard/messages", title: "Open messages", blurb: "Ride chats and stable conversations." },
+                  ].map((action) => (
+                    <Link
+                      key={action.href}
+                      href={action.href}
+                      className="block rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 transition-colors hover:border-turf-700 hover:bg-turf-800/30"
+                    >
+                      <p className="text-sm font-semibold text-white">{action.title}</p>
+                      <p className="mt-0.5 text-xs text-zinc-400">{action.blurb}</p>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <OwnerHorseClaim claims={ownerHorseClaims} />
+
           <HorsePreloadWizard links={ownerHorseLinks} role="owner" />
+
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                Upcoming runners
+              </h2>
+              <Link
+                href="/meetings"
+                className="text-sm font-medium text-turf-700 hover:underline"
+              >
+                Browse meetings
+              </Link>
+            </div>
+            {ownerUpcomingRunners.length > 0 ? (
+              <div className="grid gap-2">
+                {ownerUpcomingRunners.map((runner: any) => {
+                  const meeting = runner.meetings;
+                  const race = Array.isArray(runner.races) ? runner.races[0] : runner.races;
+                  return (
+                    <Link
+                      key={runner.id}
+                      href={meeting?.id ? `/meetings/${meeting.id}` : "/meetings"}
+                      className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card transition-all hover:border-turf-200 hover:shadow-lift"
+                    >
+                      {meeting?.meeting_date ? (
+                        <DateBlock date={meeting.meeting_date} />
+                      ) : null}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-display font-semibold text-ink">
+                            {runner.horse_name}
+                          </p>
+                          {runner.race_number ? (
+                            <ClothChip tone="ink">R{runner.race_number}</ClothChip>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 text-sm text-zinc-500">
+                          {meeting?.track || "Upcoming meeting"}
+                          {meeting?.meeting_date ? " · " + formatMeetingDate(meeting.meeting_date) : ""}
+                          {race?.distance ? " · " + race.distance + "m" : ""}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-400">
+                          {runner.trainer_name ? "Trainer: " + runner.trainer_name : "Trainer TBC"}
+                          {" · "}
+                          {runner.jockey_name ? "Jockey: " + runner.jockey_name : "Jockey TBC"}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700">
+                        View race day
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState title="No upcoming runners linked yet">
+                Link your horses below. When race-card entries sync, your runners
+                will appear here with meeting, trainer and jockey details.
+              </EmptyState>
+            )}
+          </section>
+
           <TrainerHorses initialLinks={ownerHorseLinks} role="owner" />
           <div className="grid gap-4 sm:grid-cols-3">
             {[

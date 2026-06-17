@@ -41,7 +41,19 @@ const TEST_ACCOUNTS = [
   { email: "test-agent@jockeyfinder.com", label: "Agent", icon: "🤝", bg: "bg-violet-50 border-violet-200 hover:bg-violet-100" },
 ];
 
-export default async function AdminPage() {
+const TEST_ERROR_COPY: Record<string, string> = {
+  unknown: "That test account is not configured.",
+  setup_failed:
+    "I could not create or refresh the test account. Check the Supabase service role key.",
+  link_failed:
+    "The test account exists, but Supabase did not return a usable sign-in link.",
+};
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: { test_error?: string };
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -130,6 +142,9 @@ export default async function AdminPage() {
 
   const nameById = new Map((people || []).map((p) => [p.id, p.full_name || "Unknown"]));
   const meetingById = new Map((reqMeetings || []).map((m) => [m.id, m]));
+  const testError = searchParams?.test_error
+    ? TEST_ERROR_COPY[searchParams.test_error] || "The test account sign-in failed."
+    : null;
 
   const PendingList = ({
     rows,
@@ -235,6 +250,12 @@ export default async function AdminPage() {
       <SectionHeading eyebrow="Admin" title="Operations console">
         Approvals, registry checks and the race calendar feed.
       </SectionHeading>
+
+      {testError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <span className="font-semibold">Test sign-in failed.</span> {testError}
+        </div>
+      ) : null}
 
       {/* Test accounts panel */}
       <section>

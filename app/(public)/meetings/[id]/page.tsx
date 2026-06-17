@@ -1,10 +1,10 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
+export const revalidate = 900;
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
+import { hasSupabaseSessionCookie } from "@/lib/supabase/session-cookie";
 import { DateBlock, JockeyChip } from "@/components/racing";
 import { Badge } from "@/components/ui/badge";
 import { cn, nzToday } from "@/lib/utils";
@@ -53,24 +53,28 @@ export default async function MeetingDetailPage({
 }: {
   params: { id: string };
 }) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = createPublicClient();
 
   let userRole: "jockey" | "agent" | "trainer" | "owner" | null = null;
   let userId: string | null = null;
+  let sessionClient: Awaited<ReturnType<typeof createClient>> | null = null;
 
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, role")
-      .eq("id", user.id)
-      .single();
-    if (profile) {
-      userRole = profile.role as typeof userRole;
-      userId = profile.id;
+  if (await hasSupabaseSessionCookie()) {
+    sessionClient = await createClient();
+    const {
+      data: { user },
+    } = await sessionClient.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await sessionClient
+        .from("profiles")
+        .select("id, role")
+        .eq("id", user.id)
+        .single();
+      if (profile) {
+        userRole = profile.role as typeof userRole;
+        userId = profile.id;
+      }
     }
   }
 
@@ -110,7 +114,7 @@ export default async function MeetingDetailPage({
     const raceIdMap = new Map(racesFromDb.map((r) => [r.race_number, r.id]));
     const { data } = await supabase
       .from("race_entries")
-      .select("id, race_number, horse_name, jockey_name, trainer_name, barrier")
+      .select("id, race_number, horse_number, horse_name, jockey_name, trainer_name, barrier")
       .eq("nztr_day_id", meeting.nztr_day_id)
       .order("race_number", { ascending: true })
       .order("barrier", { ascending: true, nullsFirst: false })
@@ -134,8 +138,8 @@ export default async function MeetingDetailPage({
   }
 
   const requestedHorses: Record<number, Set<string>> = {};
-  if (userId && (userRole === "jockey" || userRole === "agent")) {
-    const { data: myRequests } = await supabase
+  if (sessionClient && userId && (userRole === "jockey" || userRole === "agent")) {
+    const { data: myRequests } = await sessionClient
       .from("ride_requests")
       .select("race_number, horse_name")
       .eq("meeting_id", meeting.id)

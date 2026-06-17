@@ -165,6 +165,7 @@ create table if not exists public.profiles (
   country text default 'New Zealand',
   profile_photo_url text,
   bio text,
+  is_test boolean not null default false,
   verified boolean not null default false,
   verification_status text not null default 'pending'
     check (verification_status in ('pending', 'approved', 'rejected')),
@@ -183,6 +184,7 @@ create table if not exists public.profiles (
   availability_notes text,
   id_document_path text,
   id_document_uploaded_at timestamptz,
+  trial_start_date timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -190,6 +192,9 @@ create table if not exists public.profiles (
 create index if not exists profiles_role_idx on public.profiles (role);
 create index if not exists profiles_phone_normalized_idx on public.profiles (phone_normalized);
 create index if not exists profiles_email_idx on public.profiles (lower(email));
+
+alter table public.profiles
+  add column if not exists is_test boolean not null default false;
 
 -- NZTR people registry, imported from CSV. Used to auto verify
 -- trainers and flag agents.
@@ -212,6 +217,7 @@ create table if not exists public.meetings (
   club text,
   source text default 'loveracing',
   meeting_type text,
+  is_jumps boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -227,8 +233,117 @@ create table if not exists public.races (
   race_number integer not null,
   name text,
   start_time timestamptz,
+  distance integer,
+  race_class text,
   created_at timestamptz not null default now(),
   unique (nztr_day_id, race_number)
+);
+
+create table if not exists public.horses (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  sire text,
+  dam text,
+  nztr_trainer_name text,
+  created_at timestamptz not null default now(),
+  unique (name, sire, dam)
+);
+
+create table if not exists public.race_entries (
+  id uuid primary key default gen_random_uuid(),
+  meeting_id uuid not null references public.meetings (id) on delete cascade,
+  race_id uuid references public.races (id) on delete set null,
+  nztr_day_id bigint not null,
+  race_number integer not null,
+  horse_number integer,
+  horse_name text not null,
+  barrier integer,
+  jockey_name text,
+  trainer_name text,
+  owner_text text,
+  sire text,
+  dam text,
+  weight numeric,
+  rating numeric,
+  synced_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (nztr_day_id, race_number, horse_name)
+);
+
+create index if not exists race_entries_meeting_idx on public.race_entries (meeting_id);
+create index if not exists race_entries_trainer_idx on public.race_entries (trainer_name);
+create index if not exists race_entries_horse_idx on public.race_entries (horse_name);
+
+create table if not exists public.race_results (
+  id uuid primary key default gen_random_uuid(),
+  meeting_id uuid not null references public.meetings (id) on delete cascade,
+  nztr_day_id bigint not null,
+  race_number integer not null,
+  race_name text,
+  distance_m integer,
+  prize_total numeric,
+  position integer not null,
+  horse_name text not null,
+  jockey_name text,
+  trainer_name text,
+  win_dividend numeric,
+  place_dividend numeric,
+  race_date date,
+  synced_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (nztr_day_id, race_number, position)
+);
+
+create index if not exists race_results_jockey_idx on public.race_results (jockey_name);
+create index if not exists race_results_date_idx on public.race_results (race_date);
+
+create table if not exists public.trainer_horse_links (
+  id uuid primary key default gen_random_uuid(),
+  trainer_id uuid not null references public.profiles (id) on delete cascade,
+  horse_id uuid not null references public.horses (id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending', 'confirmed', 'dismissed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (trainer_id, horse_id)
+);
+
+create index if not exists trainer_horse_links_trainer_idx on public.trainer_horse_links (trainer_id);
+
+create table if not exists public.owner_horse_links (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references public.profiles (id) on delete cascade,
+  horse_id uuid not null references public.horses (id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending', 'confirmed', 'dismissed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (owner_id, horse_id)
+);
+
+create index if not exists owner_horse_links_owner_idx on public.owner_horse_links (owner_id);
+
+create table if not exists public.owner_horse_claims (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  race_entry_id uuid not null references public.race_entries (id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending', 'confirmed', 'dismissed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, race_entry_id)
+);
+
+create index if not exists owner_horse_claims_user_idx on public.owner_horse_claims (user_id);
+
+create table if not exists public.jockey_season_stats (
+  id uuid primary key default gen_random_uuid(),
+  jockey_name text not null unique,
+  total_rides integer not null default 0,
+  wins integer not null default 0,
+  places integer not null default 0,
+  win_pct numeric not null default 0,
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.meeting_attendance (
@@ -313,10 +428,26 @@ create table if not exists public.subscriptions (
   status text,
   trial_end timestamptz,
   current_period_end timestamptz,
+  trial_reminder_sent boolean not null default false,
   updated_at timestamptz not null default now()
 );
 
 create index if not exists subscriptions_customer_idx on public.subscriptions (stripe_customer_id);
+
+-- Existing live projects may already have the base tables. Keep this
+-- schema safe to re-run by adding newer app columns explicitly.
+alter table public.profiles
+  add column if not exists trial_start_date timestamptz not null default now();
+
+alter table public.meetings
+  add column if not exists is_jumps boolean not null default false;
+
+alter table public.races
+  add column if not exists distance integer,
+  add column if not exists race_class text;
+
+alter table public.subscriptions
+  add column if not exists trial_reminder_sent boolean not null default false;
 
 -- ------------------------------------------------------------
 -- 3. Triggers
@@ -355,6 +486,26 @@ create trigger ride_requests_updated_at
 drop trigger if exists subscriptions_updated_at on public.subscriptions;
 create trigger subscriptions_updated_at
   before update on public.subscriptions
+  for each row execute function public.set_updated_at();
+
+drop trigger if exists trainer_horse_links_updated_at on public.trainer_horse_links;
+create trigger trainer_horse_links_updated_at
+  before update on public.trainer_horse_links
+  for each row execute function public.set_updated_at();
+
+drop trigger if exists owner_horse_links_updated_at on public.owner_horse_links;
+create trigger owner_horse_links_updated_at
+  before update on public.owner_horse_links
+  for each row execute function public.set_updated_at();
+
+drop trigger if exists owner_horse_claims_updated_at on public.owner_horse_claims;
+create trigger owner_horse_claims_updated_at
+  before update on public.owner_horse_claims
+  for each row execute function public.set_updated_at();
+
+drop trigger if exists jockey_season_stats_updated_at on public.jockey_season_stats;
+create trigger jockey_season_stats_updated_at
+  before update on public.jockey_season_stats
   for each row execute function public.set_updated_at();
 
 -- Keeps registry phone numbers normalised on the way in.
@@ -531,6 +682,13 @@ alter table public.profiles enable row level security;
 alter table public.nztr_people_registry enable row level security;
 alter table public.meetings enable row level security;
 alter table public.races enable row level security;
+alter table public.horses enable row level security;
+alter table public.race_entries enable row level security;
+alter table public.race_results enable row level security;
+alter table public.trainer_horse_links enable row level security;
+alter table public.owner_horse_links enable row level security;
+alter table public.owner_horse_claims enable row level security;
+alter table public.jockey_season_stats enable row level security;
 alter table public.meeting_attendance enable row level security;
 alter table public.ride_requests enable row level security;
 alter table public.agent_jockeys enable row level security;
@@ -588,6 +746,87 @@ create policy "races_public_read" on public.races
 drop policy if exists "races_admin_write" on public.races;
 create policy "races_admin_write" on public.races
   for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "horses_public_read" on public.horses;
+create policy "horses_public_read" on public.horses
+  for select to anon, authenticated using (true);
+
+drop policy if exists "horses_admin_write" on public.horses;
+create policy "horses_admin_write" on public.horses
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "race_entries_public_read" on public.race_entries;
+create policy "race_entries_public_read" on public.race_entries
+  for select to anon, authenticated using (true);
+
+drop policy if exists "race_entries_admin_write" on public.race_entries;
+create policy "race_entries_admin_write" on public.race_entries
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "race_results_public_read" on public.race_results;
+create policy "race_results_public_read" on public.race_results
+  for select to anon, authenticated using (true);
+
+drop policy if exists "race_results_admin_write" on public.race_results;
+create policy "race_results_admin_write" on public.race_results
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "jockey_stats_public_read" on public.jockey_season_stats;
+create policy "jockey_stats_public_read" on public.jockey_season_stats
+  for select to anon, authenticated using (true);
+
+drop policy if exists "jockey_stats_admin_write" on public.jockey_season_stats;
+create policy "jockey_stats_admin_write" on public.jockey_season_stats
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "trainer_horse_links_select" on public.trainer_horse_links;
+create policy "trainer_horse_links_select" on public.trainer_horse_links
+  for select using (trainer_id = auth.uid() or public.is_admin());
+
+drop policy if exists "trainer_horse_links_insert" on public.trainer_horse_links;
+create policy "trainer_horse_links_insert" on public.trainer_horse_links
+  for insert with check (
+    trainer_id = auth.uid()
+    and public.has_role(auth.uid(), 'trainer')
+  );
+
+drop policy if exists "trainer_horse_links_update" on public.trainer_horse_links;
+create policy "trainer_horse_links_update" on public.trainer_horse_links
+  for update using (trainer_id = auth.uid() or public.is_admin())
+  with check (trainer_id = auth.uid() or public.is_admin());
+
+drop policy if exists "trainer_horse_links_delete" on public.trainer_horse_links;
+create policy "trainer_horse_links_delete" on public.trainer_horse_links
+  for delete using (trainer_id = auth.uid() or public.is_admin());
+
+drop policy if exists "owner_horse_links_select" on public.owner_horse_links;
+create policy "owner_horse_links_select" on public.owner_horse_links
+  for select using (owner_id = auth.uid() or public.is_admin());
+
+drop policy if exists "owner_horse_links_insert" on public.owner_horse_links;
+create policy "owner_horse_links_insert" on public.owner_horse_links
+  for insert with check (
+    owner_id = auth.uid()
+    and public.has_role(auth.uid(), 'owner')
+  );
+
+drop policy if exists "owner_horse_links_update" on public.owner_horse_links;
+create policy "owner_horse_links_update" on public.owner_horse_links
+  for update using (owner_id = auth.uid() or public.is_admin())
+  with check (owner_id = auth.uid() or public.is_admin());
+
+drop policy if exists "owner_horse_links_delete" on public.owner_horse_links;
+create policy "owner_horse_links_delete" on public.owner_horse_links
+  for delete using (owner_id = auth.uid() or public.is_admin());
+
+drop policy if exists "owner_horse_claims_select" on public.owner_horse_claims;
+create policy "owner_horse_claims_select" on public.owner_horse_claims
+  for select using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "owner_horse_claims_update" on public.owner_horse_claims;
+create policy "owner_horse_claims_update" on public.owner_horse_claims
+  for update using (user_id = auth.uid() or public.is_admin())
+  with check (user_id = auth.uid() or public.is_admin());
 
 -- meeting_attendance ------------------------------------------
 -- Raw rows stay private. The public calendar reads the
@@ -766,6 +1005,7 @@ select
 from public.profiles p
 where p.verified = true
   and p.verification_status = 'approved'
+  and p.is_test = false
   and p.role in ('jockey', 'trainer');
 
 grant select on public.public_profiles to anon, authenticated;
@@ -788,7 +1028,8 @@ join public.profiles p on p.id = ma.user_id
 where ma.attending = true
   and p.role = 'jockey'
   and p.verified = true
-  and p.verification_status = 'approved';
+  and p.verification_status = 'approved'
+  and p.is_test = false;
 
 grant select on public.public_meeting_attendance to anon, authenticated;
 
@@ -846,16 +1087,16 @@ create policy "identity_own_update" on storage.objects
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- Public directory listing of registry people. Names and locations
--- only, never phone numbers. People who have claimed their listing by
--- signing up are excluded because their live profile shows instead.
+-- Public directory listing of registry people. People who have claimed their
+-- listing by signing up are excluded because their live profile shows instead.
 create or replace view public.public_registry_people
 with (security_invoker = off) as
 select
   r.id,
   r.role,
   r.full_name,
-  r.location
+  r.location,
+  r.phone
 from public.nztr_people_registry r
 where r.role in ('jockey', 'trainer')
   and r.full_name is not null
@@ -864,6 +1105,7 @@ where r.role in ('jockey', 'trainer')
     where p.role = r.role
       and p.phone_normalized = r.phone_normalized
       and p.verified = true
+      and p.is_test = false
   );
 
 grant select on public.public_registry_people to anon, authenticated;

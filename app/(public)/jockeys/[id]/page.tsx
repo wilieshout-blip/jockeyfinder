@@ -1,10 +1,10 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
+export const revalidate = 900;
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
+import { hasSupabaseSessionCookie } from "@/lib/supabase/session-cookie";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, ClothChip, VerifiedBadge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
@@ -43,7 +43,7 @@ function seasonLabel(): string {
 }
 
 export default async function JockeyProfilePage({ params }: { params: { id: string } }) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data: jockey } = await supabase
     .from("public_profiles").select("*").eq("id", params.id).eq("role", "jockey")
@@ -85,10 +85,17 @@ export default async function JockeyProfilePage({ params }: { params: { id: stri
     };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  let user: { id: string } | null = null;
   let viewer: Profile | null = null;
-  if (user) {
-    const { data: p } = await supabase.from("profiles").select("*").eq("id", user.id).single<Profile>();
+  if (await hasSupabaseSessionCookie()) {
+    const sessionClient = await createClient();
+    const {
+      data: { user: signedInUser },
+    } = await sessionClient.auth.getUser();
+    user = signedInUser ? { id: signedInUser.id } : null;
+    const { data: p } = user
+      ? await sessionClient.from("profiles").select("*").eq("id", user.id).single<Profile>()
+      : { data: null };
     viewer = p;
   }
   const canRequest = viewer?.role === "trainer" && viewer.verified;

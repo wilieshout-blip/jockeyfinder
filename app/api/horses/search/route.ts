@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const q = searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) return NextResponse.json([]);
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("horses")
     .select("id, name, sire, dam, nztr_trainer_name")

@@ -13,6 +13,10 @@
       "schedule": "30 18 * * *"
     },
     {
+      "path": "/api/racing/sync-tab",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/chats/meeting-groups",
       "schedule": "0 6 * * *"
     },

@@ -189,10 +189,9 @@ export async function emailTrialReminder({
     </a>
     <p style="color:#6b7280;font-size:14px;margin-top:24px">You can cancel anytime from your billing settings.</p>
   `);
-  await resend.emails.send({
-    from: "JockeyFinder <noreply@jockeyfinder.com>",
+  await sendEmail(
     to,
-    subject: `Your JockeyFinder trial ends in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`,
-    html,
-  });
+    `Your JockeyFinder trial ends in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`,
+    html
+  );
 }

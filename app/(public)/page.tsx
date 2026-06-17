@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
 import { ClothChip } from "@/components/ui/badge";
 import { SectionHeading } from "@/components/ui/card";
+import { TrainerRideDemo } from "@/components/trainer-ride-demo";
 
 export const metadata = {
   title: "JockeyFinder · Plan rides. Book jockeys faster. See who's riding where.",
@@ -212,7 +213,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <HeroRacecard />
+          <TrainerRideDemo />
         </div>
       </section>
 

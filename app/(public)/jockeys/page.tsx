@@ -1,9 +1,7 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
+export const revalidate = 900;
 
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { nzToday, nzDatePlusDays } from "@/lib/utils";
 import { JockeyDirectory } from "./jockey-directory";
 import type { DirectoryJockey, JockeyStat } from "./jockey-cards";
@@ -16,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function JockeysPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data: jockeysRaw } = await supabase
     .from("public_profiles")

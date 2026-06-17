@@ -16,6 +16,9 @@ export interface RegistryPerson {
   full_name: string | null;
   location: string | null;
   phone: string | null;
+  runner_count?: number;
+  upcoming_runner_count?: number;
+  last_seen_date?: string | null;
 }
 
 interface Props {
@@ -109,9 +112,37 @@ export function RegistryPeopleList({ people }: Props) {
                       <span className="text-zinc-400 italic">Not listed in registry</span>
                     </div>
                   )}
+                  {p.runner_count || p.upcoming_runner_count ? (
+                    <div className="grid gap-0 border-t border-line sm:grid-cols-3 sm:divide-x sm:divide-line">
+                      <div className="px-3 py-2.5">
+                        <p className="text-xs text-zinc-400">Race-card runners</p>
+                        <p className="mt-0.5 font-semibold text-ink">
+                          {p.runner_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="px-3 py-2.5">
+                        <p className="text-xs text-zinc-400">Upcoming</p>
+                        <p className="mt-0.5 font-semibold text-ink">
+                          {p.upcoming_runner_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="px-3 py-2.5">
+                        <p className="text-xs text-zinc-400">Last seen</p>
+                        <p className="mt-0.5 font-semibold text-ink">
+                          {p.last_seen_date
+                            ? new Date(p.last_seen_date + "T12:00:00").toLocaleDateString("en-NZ", {
+                                day: "numeric",
+                                month: "short",
+                              })
+                            : "-"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 <p className="mt-2 text-xs text-zinc-400">
                   This person hasn&apos;t claimed their JockeyFinder profile yet.
+                  Race-card stats are built from synced entries.
                 </p>
               </div>
             )}

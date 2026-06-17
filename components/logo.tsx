@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils";
 export function Logo({
   href = "/",
   dark = false,
+  priority = false,
   className,
 }: {
   href?: string;
   dark?: boolean;
+  priority?: boolean;
   className?: string;
 }) {
   return (
@@ -22,7 +24,7 @@ export function Logo({
         alt=""
         width={46}
         height={28}
-        priority
+        priority={priority}
         className="h-7 w-auto"
       />
       <span

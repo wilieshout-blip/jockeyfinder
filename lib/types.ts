@@ -12,6 +12,7 @@ export interface Profile {
   country: string | null;
   profile_photo_url: string | null;
   bio: string | null;
+  is_test: boolean;
   verified: boolean;
   verification_status: "pending" | "approved" | "rejected";
   status: string;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getTrialEnd } from "@/lib/subscription";
 import { emailTrialReminder } from "@/lib/email";
 
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, email, first_name, role, trial_start_date, subscriptions!left(status, trial_reminder_sent, stripe_subscription_id)")

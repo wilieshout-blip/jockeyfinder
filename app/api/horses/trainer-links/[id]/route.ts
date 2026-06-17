@@ -5,7 +5,7 @@ type Params = { params: { id: string } };
 
 // PATCH — confirm or dismiss a trainer horse link
 export async function PATCH(request: Request, { params }: Params) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -25,7 +25,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
 // DELETE — remove a horse from trainer's stable
 export async function DELETE(_: Request, { params }: Params) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

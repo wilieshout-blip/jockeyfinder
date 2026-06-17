@@ -1,10 +1,8 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
+export const revalidate = 900;
 
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { MeetingCard } from "@/components/racing";
 import { EmptyState } from "@/components/ui/empty";
 import { MeetingsFilterBar } from "@/components/meetings-filter-bar";
@@ -32,7 +30,7 @@ export default async function MeetingsPage({
 }: {
   searchParams: { type?: string; day?: string; cat?: string };
 }) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const typeFilter = searchParams.type ?? "";
   const dayFilter = searchParams.day ?? "";

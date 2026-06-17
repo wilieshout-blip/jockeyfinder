@@ -234,14 +234,32 @@ export function ProfileForm({
                   return;
           }
       
-          const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-          URL.revokeObjectURL(preview);
-          previewUrlRef.current = null;
-          setPhotoUrl(data.publicUrl);
-          setUploading(false);
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = data.publicUrl;
+
+      const { error: profileErr } = await supabase
+              .from("profiles")
+              .update({ profile_photo_url: publicUrl })
+              .eq("id", profile.id);
+
+      if (profileErr) {
+              setUploading(false);
+              setError(profileErr.message);
+              URL.revokeObjectURL(preview);
+              previewUrlRef.current = null;
+              setPhotoUrl(profile.profile_photo_url);
+              return;
+      }
+
+      URL.revokeObjectURL(preview);
+      previewUrlRef.current = null;
+      setPhotoUrl(publicUrl);
+      setUploading(false);
+      setSaved(true);
+      router.refresh();
       
-          // Reset the file input so the same file can be re-selected
-          if (fileInputRef.current) fileInputRef.current.value = "";
+      // Reset the file input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   
     async function save() {

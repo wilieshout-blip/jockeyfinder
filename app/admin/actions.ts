@@ -6,6 +6,15 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/utils";
 import { syncMeetings } from "@/lib/loveracing";
+import {
+  syncUpcomingRaceEntries,
+  syncUpcomingRaces,
+  type RaceCardSyncResult,
+} from "@/lib/loveracing-race-card";
+import {
+  syncTabNzRaceCards,
+  type TabRaceCardSyncResult,
+} from "@/lib/tab-racing";
 
 async function assertAdmin() {
   const supabase = await createClient();
@@ -67,10 +76,36 @@ export async function markAgentPaid(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export async function syncNow() {
+export interface ManualSyncResult {
+  ok: boolean;
+  meetings: Awaited<ReturnType<typeof syncMeetings>>;
+  races: RaceCardSyncResult;
+  entries: RaceCardSyncResult;
+  tab: TabRaceCardSyncResult;
+}
+
+export async function syncNow(): Promise<ManualSyncResult> {
   await assertAdmin();
-  const result = await syncMeetings();
+  const meetings = await syncMeetings();
+  const tab = await syncTabNzRaceCards(7);
+  const races = meetings.ok
+    ? await syncUpcomingRaces()
+    : { ok: false, synced: 0, meetings: 0, error: "LoveRacing meeting sync failed" };
+  const entries =
+    meetings.ok && races.ok
+      ? await syncUpcomingRaceEntries()
+      : { ok: false, synced: 0, meetings: 0, error: "LoveRacing race sync skipped" };
+
   revalidatePath("/admin");
   revalidatePath("/meetings");
-  return result;
+  revalidatePath("/jockeys");
+  revalidatePath("/trainers");
+
+  return {
+    ok: tab.ok || (meetings.ok && races.ok && entries.ok),
+    meetings,
+    races,
+    entries,
+    tab,
+  };
 }
