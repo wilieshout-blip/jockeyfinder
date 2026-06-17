@@ -8,7 +8,7 @@ import type { RegistryPerson } from "@/components/registry-people-list";
 import { nzToday } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Trainers | JockeyFinder",
+  title: "Trainers",
   description:
     "Verified New Zealand trainers on JockeyFinder, auto-verified against the NZTR people registry.",
 };

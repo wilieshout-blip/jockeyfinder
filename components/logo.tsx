@@ -25,7 +25,7 @@ export function Logo({
         width={46}
         height={28}
         priority={priority}
-        className="h-7 w-auto"
+        className="h-7 w-[46px] object-contain"
       />
       <span
         className={cn(

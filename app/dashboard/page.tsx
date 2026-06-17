@@ -11,6 +11,7 @@ import { IdUploadForm } from "@/components/id-upload-form";
 import { HorsePreloadWizard } from "@/components/horse-preload-wizard";
 import { TrainerHorses } from "@/components/trainer-horses";
 import { OwnerHorseClaim } from "@/components/owner-horse-claim";
+import { PageHeader } from "@/components/premium";
 import {
   REQUEST_STATUS_STYLES,
   cn,
@@ -190,19 +191,16 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-turf-600">
-            Dashboard
-          </p>
-          <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-            Hi {firstName}
-          </h1>
-        </div>
-        <Badge tone="neutral" className="capitalize">
-          {profile.role}
-        </Badge>
-      </div>
+      <PageHeader
+        eyebrow="Race-day workspace"
+        title={`Hi ${firstName}`}
+        description="Your current meetings, bookings and account actions in one operational view."
+        action={
+          <Badge tone="neutral" className="capitalize">
+            {profile.role}
+          </Badge>
+        }
+      />
 
       {admin ? (
         <Link

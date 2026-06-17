@@ -8,8 +8,9 @@ import type { ChatThread, Meeting, Message } from "@/lib/types";
 export default async function ThreadPage({
   params,
 }: {
-  params: { threadId: string };
+  params: Promise<{ threadId: string }>;
 }) {
+  const { threadId } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -20,7 +21,7 @@ export default async function ThreadPage({
   const { data: thread } = await supabase
     .from("chat_threads")
     .select("*")
-    .eq("id", params.threadId)
+    .eq("id", threadId)
     .maybeSingle<ChatThread>();
   if (!thread) notFound();
 

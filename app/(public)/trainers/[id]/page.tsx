@@ -57,8 +57,9 @@ function formatRunnerTime(iso: string | null) {
 export default async function TrainerProfilePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = createPublicClient();
 
   let user: { id: string } | null = null;
@@ -73,7 +74,7 @@ export default async function TrainerProfilePage({
   const { data: trainer } = await supabase
     .from("public_profiles")
     .select("id, full_name, profile_photo_url, bio, base_region, country, preferred_tracks, created_at")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("role", "trainer")
     .maybeSingle<PublicTrainer>();
 

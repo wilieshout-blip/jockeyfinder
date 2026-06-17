@@ -8,7 +8,7 @@ import type { DirectoryJockey, JockeyStat } from "./jockey-cards";
 import type { RegistryPerson } from "@/components/registry-people-list";
 
 export const metadata: Metadata = {
-  title: "Jockeys | JockeyFinder",
+  title: "Jockeys",
   description:
     "Verified New Zealand jockeys with current riding weights, apprentice claims, and upcoming meeting attendance.",
 };

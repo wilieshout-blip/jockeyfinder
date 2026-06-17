@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
 import { SITE_URL } from "@/lib/supabase/config";
+import { friendlyAuthError } from "@/lib/auth-errors";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -24,7 +25,7 @@ export default function ForgotPasswordPage() {
     });
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(friendlyAuthError(error, "Unable to send the reset link. Please try again."));
       return;
     }
     setSent(true);
@@ -39,7 +40,13 @@ export default function ForgotPasswordPage() {
         Enter your email and we will send you a link to set a new password.
       </p>
 
-      <div className="mt-8 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card">
+      <form
+        className="mt-8 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
         {sent ? (
           <div className="rounded-xl border border-turf-200 bg-turf-50 p-4">
             <p className="font-medium text-turf-800">Check your email</p>
@@ -58,24 +65,22 @@ export default function ForgotPasswordPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submit();
-                }}
                 placeholder="you@example.co.nz"
+                required
               />
             </div>
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
             <Button
+              type="submit"
               className="w-full"
               variant="accent"
-              onClick={submit}
               disabled={busy || !email}
             >
               {busy ? "Sending..." : "Send reset link"}
             </Button>
           </>
         )}
-      </div>
+      </form>
 
       <p className="mt-6 text-center text-sm text-zinc-600">
         Remembered it?{" "}

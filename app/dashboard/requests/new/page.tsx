@@ -13,8 +13,9 @@ interface Option {
 export default async function NewRequestPage({
   searchParams,
 }: {
-  searchParams: { meeting?: string; jockey?: string; trainer?: string };
+  searchParams: Promise<{ meeting?: string; jockey?: string; trainer?: string }>;
 }) {
+  const queryParams = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -126,10 +127,10 @@ export default async function NewRequestPage({
         counterparts={counterpartOptions}
         managedJockeys={managedOptions}
         defaults={{
-          meeting: searchParams.meeting ?? "",
+          meeting: queryParams.meeting ?? "",
           counterpart:
-            (me.role === "trainer" ? searchParams.jockey : searchParams.trainer) ?? "",
-          managedJockey: searchParams.jockey ?? "",
+            (me.role === "trainer" ? queryParams.jockey : queryParams.trainer) ?? "",
+          managedJockey: queryParams.jockey ?? "",
         }}
       />
     </div>

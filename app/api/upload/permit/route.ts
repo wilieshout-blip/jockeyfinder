@@ -1,39 +1,73 @@
-// app/api/upload/permit/route.ts
-// Accepts a trial rider permit document upload immediately after signUp().
-// The user ID is known (returned by auth.signUp) but the user is not yet
-// authenticated (email confirmation pending), so we use the service role.
-
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import {
+  hasAllowedUploadSignature,
+  isSameOriginRequest,
+} from "@/lib/security";
 
 export const runtime = "nodejs";
 
-export async function POST(req: NextRequest) {
-  const formData = await req.formData();
-  const userId = formData.get("user_id") as string | null;
-  const file = formData.get("file") as File | null;
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-  if (!userId || !file) {
-    return NextResponse.json({ error: "Missing user_id or file" }, { status: 400 });
+export async function POST(req: NextRequest) {
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
   }
 
-  if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: "Invalid upload" }, { status: 400 });
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: "Missing file" }, { status: 400 });
+  }
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
     return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
   }
 
-  if (file.size > 10 * 1024 * 1024) {
-    return NextResponse.json({ error: "File too large (max 10 MB)" }, { status: 400 });
+  if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
+    return NextResponse.json({ error: "File must be under 10 MB" }, { status: 400 });
   }
 
-  const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
-  const path = userId + "/trial-permit." + ext;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!hasAllowedUploadSignature(file.type, bytes)) {
+    return NextResponse.json(
+      { error: "The file contents do not match the selected type" },
+      { status: 400 }
+    );
+  }
 
-  const admin = createAdminClient();
-  const bytes = await file.arrayBuffer();
+  const extension =
+    file.type === "application/pdf"
+      ? "pdf"
+      : file.type === "image/jpeg"
+      ? "jpg"
+      : file.type.split("/")[1];
+  const path = `${user.id}/trial-permit.${extension}`;
 
-  const { error: uploadError } = await admin.storage
+  const { error: uploadError } = await supabase.storage
     .from("identity-docs")
-    .upload(path, Buffer.from(bytes), {
+    .upload(path, bytes, {
       contentType: file.type,
       upsert: true,
     });
@@ -43,15 +77,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 
-  // Store the path on the profile row so admin can retrieve a signed URL later.
-  const { error: dbError } = await admin
+  const { error: profileError } = await supabase
     .from("profiles")
-    .update({ id_document_path: path })
-    .eq("id", userId);
+    .update({
+      id_document_path: path,
+      id_document_uploaded_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
 
-  if (dbError) {
-    console.error("[permit-upload] db error:", dbError.message);
-    // Non-fatal: storage upload succeeded; admin can still find the file.
+  if (profileError) {
+    console.error("[permit-upload] profile error:", profileError.message);
+    return NextResponse.json({ error: "Upload could not be recorded" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

@@ -6,11 +6,12 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { MeetingCard } from "@/components/racing";
 import { EmptyState } from "@/components/ui/empty";
 import { MeetingsFilterBar } from "@/components/meetings-filter-bar";
+import { PageHeader } from "@/components/premium";
 import { nzToday, nzDatePlusDays } from "@/lib/utils";
 import type { Meeting, PublicAttendance } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Race Meetings | JockeyFinder",
+  title: "Race Meetings",
   description: "Upcoming New Zealand race meetings and trials with attending jockeys, weights, and claims.",
 };
 
@@ -28,13 +29,14 @@ const PREMIER_TRACKS = [
 export default async function MeetingsPage({
   searchParams,
 }: {
-  searchParams: { type?: string; day?: string; cat?: string };
+  searchParams: Promise<{ type?: string; day?: string; cat?: string }>;
 }) {
+  const queryParams = await searchParams;
   const supabase = createPublicClient();
 
-  const typeFilter = searchParams.type ?? "";
-  const dayFilter = searchParams.day ?? "";
-  const catFilter = searchParams.cat ?? "";
+  const typeFilter = queryParams.type ?? "";
+  const dayFilter = queryParams.day ?? "";
+  const catFilter = queryParams.cat ?? "";
 
   const isTrials = typeFilter === "trial";
 
@@ -95,18 +97,12 @@ export default async function MeetingsPage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-      <div className="mb-8">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-turf-600">
-          Next 90 days
-        </p>
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-          Race meetings
-        </h1>
-        <p className="mt-2 max-w-2xl text-zinc-600">
-          Upcoming New Zealand meetings with attending jockeys, weights, and claims as declared.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+      <PageHeader
+        eyebrow="Next 90 days"
+        title="Race meetings"
+        description="Upcoming New Zealand meetings with attending jockeys, weights, and claims as declared."
+      />
 
       <Suspense
         fallback={

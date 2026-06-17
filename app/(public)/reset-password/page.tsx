@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/field";
+import { Label } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
+import { friendlyAuthError } from "@/lib/auth-errors";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(friendlyAuthError(error, "Unable to update the password. Please try again."));
       return;
     }
     setDone(true);
@@ -62,7 +64,13 @@ export default function ResetPasswordPage() {
         Pick something you will remember. Minimum eight characters.
       </p>
 
-      <div className="mt-8 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card">
+      <form
+        className="mt-8 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
         {done ? (
           <div className="rounded-xl border border-turf-200 bg-turf-50 p-4">
             <p className="font-medium text-turf-800">Password updated</p>
@@ -83,41 +91,40 @@ export default function ResetPasswordPage() {
           <>
             <div>
               <Label htmlFor="password">New password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="New password"
+                minLength={8}
+                required
               />
             </div>
             <div>
               <Label htmlFor="confirm">Confirm password</Label>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submit();
-                }}
                 placeholder="Type it again"
+                minLength={8}
+                required
               />
             </div>
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
             <Button
+              type="submit"
               className="w-full"
               variant="accent"
-              onClick={submit}
               disabled={busy || !password || !confirm}
             >
               {busy ? "Saving..." : "Save new password"}
             </Button>
           </>
         )}
-      </div>
+      </form>
     </div>
   );
 }

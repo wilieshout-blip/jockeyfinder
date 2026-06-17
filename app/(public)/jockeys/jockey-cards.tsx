@@ -58,6 +58,7 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
         const claim = formatClaim(j.apprentice_claim);
         const meetingCount = counts[j.id] ?? 0;
         const isOpen = openId === j.id;
+        const detailsId = `jockey-card-${j.id}`;
         const displayName = stripTitle(j.full_name);
         const stat = j.full_name
           ? statsByName.get(j.full_name.toLowerCase())
@@ -75,6 +76,8 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
             <button
               type="button"
               onClick={() => setOpenId(isOpen ? null : j.id)}
+              aria-expanded={isOpen}
+              aria-controls={detailsId}
               className="flex w-full cursor-pointer items-start gap-4 p-5 text-left transition-colors hover:bg-mist/60 active:bg-mist"
             >
               <Avatar src={j.profile_photo_url} name={displayName} size="lg" />
@@ -152,7 +155,7 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
 
             {/* Expanded panel */}
             {isOpen && (
-              <div className="space-y-4 border-t border-line bg-mist/40 px-5 py-4">
+              <div id={detailsId} className="space-y-4 border-t border-line bg-mist/40 px-5 py-4">
                 {j.bio ? (
                   <p className="text-sm text-zinc-700">{j.bio}</p>
                 ) : (

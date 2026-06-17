@@ -60,15 +60,15 @@ export function AgentBar({ jockeys }: { jockeys: ManagedJockey[] }) {
   if (jockeys.length === 0) return null;
 
   return (
-    <div className="border-b border-turf-100 bg-turf-50 px-4 py-2">
-      <div className="mx-auto flex max-w-6xl items-center gap-3">
-        <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.12em] text-turf-700">
+    <div className="border-b border-turf-800 bg-turf-900 px-4 py-2 text-white">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 sm:px-2 lg:px-4">
+        <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300">
           Acting for
         </span>
         <select
           value={selectedId}
           onChange={handleChange}
-          className="rounded-lg border border-turf-200 bg-white px-3 py-1.5 text-sm font-medium text-ink shadow-sm focus:outline-none focus:ring-2 focus:ring-turf-500"
+          className="rounded-lg border border-turf-700 bg-turf-950 px-3 py-1.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
         >
           {jockeys.map((j) => (
             <option key={j.id} value={j.id}>
@@ -76,7 +76,7 @@ export function AgentBar({ jockeys }: { jockeys: ManagedJockey[] }) {
             </option>
           ))}
         </select>
-        <span className="hidden text-xs text-zinc-500 sm:block">
+        <span className="hidden text-xs text-turf-200/60 sm:block">
           Switch to manage a different jockey&apos;s calendar and requests.
         </span>
       </div>

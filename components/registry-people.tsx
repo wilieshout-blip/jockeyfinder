@@ -42,7 +42,7 @@ export async function RegistryPeople({
             contact info. They unlock their full profile the moment they sign up.
           </p>
         </div>
-        <Link href="/signup" className={buttonClasses("outline", "sm")}>
+        <Link href={`/signup?role=${role}`} className={buttonClasses("outline", "sm")}>
           {signupLabel}
         </Link>
       </div>

@@ -7,7 +7,7 @@ import type {
 } from "react";
 
 const baseField =
-  "w-full rounded-xl border border-line bg-white px-3.5 text-ink " +
+  "w-full rounded-lg border border-line bg-white px-3.5 text-ink shadow-sm " +
   "placeholder:text-zinc-400 focus:border-turf-600 focus:outline-none " +
   "focus:ring-2 focus:ring-turf-100 disabled:bg-mist disabled:text-zinc-500";
 

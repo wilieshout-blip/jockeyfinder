@@ -50,6 +50,7 @@ export function TrainerCards({ trainers, registry }: Props) {
     <div className="grid gap-4 sm:grid-cols-2">
       {trainers.map((t) => {
         const isOpen = openId === t.id;
+        const detailsId = `trainer-card-${t.id}`;
         const reg = t.full_name
           ? registryByName.get(t.full_name.toLowerCase())
           : undefined;
@@ -80,6 +81,8 @@ export function TrainerCards({ trainers, registry }: Props) {
             <button
               type="button"
               onClick={() => setOpenId(isOpen ? null : t.id)}
+              aria-expanded={isOpen}
+              aria-controls={detailsId}
               className="flex w-full cursor-pointer items-start gap-4 p-5 text-left transition-colors hover:bg-mist/60 active:bg-mist"
             >
               <Avatar src={t.profile_photo_url} name={t.full_name} size="lg" />
@@ -135,7 +138,7 @@ export function TrainerCards({ trainers, registry }: Props) {
 
             {/* Expanded panel */}
             {isOpen && (
-              <div className="space-y-3 border-t border-line bg-mist/40 px-5 py-4">
+              <div id={detailsId} className="space-y-3 border-t border-line bg-mist/40 px-5 py-4">
                 {t.bio ? (
                   <p className="text-sm text-zinc-700">{t.bio}</p>
                 ) : (

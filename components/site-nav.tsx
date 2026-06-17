@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { buttonClasses } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Home" },
@@ -10,17 +14,27 @@ const links = [
 ];
 
 export function SiteNav() {
+  const pathname = usePathname();
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
+
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Logo priority />
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/95 text-white backdrop-blur-xl">
+      <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Logo dark priority />
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-mist hover:text-ink"
+              aria-current={isActive(l.href) ? "page" : undefined}
+              className={cn(
+                "border-b px-3 py-2 text-xs font-semibold uppercase tracking-[0.13em] transition-colors",
+                isActive(l.href)
+                  ? "border-gold-400 text-white"
+                  : "border-transparent text-zinc-400 hover:text-white"
+              )}
             >
               {l.label}
             </Link>
@@ -28,16 +42,35 @@ export function SiteNav() {
         </nav>
 
         <div className="hidden items-center gap-2.5 md:flex">
-          <Link href="/login" className={buttonClasses("ghost", "sm")}>
+          <Link
+            href="/login"
+            aria-current={pathname === "/login" ? "page" : undefined}
+            className={buttonClasses(
+              "inverse",
+              "sm",
+              cn(
+                "rounded-none",
+                pathname === "/login" ? "border-gold-400" : "border-transparent"
+              )
+            )}
+          >
             Log in
           </Link>
-          <Link href="/signup" className={buttonClasses("accent", "sm")}>
+          <Link
+            href="/signup"
+            aria-current={pathname === "/signup" ? "page" : undefined}
+            className={buttonClasses(
+              "accent",
+              "sm",
+              "rounded-none bg-gold-400 text-ink hover:bg-gold-300"
+            )}
+          >
             Sign up
           </Link>
         </div>
 
         <details className="group relative md:hidden">
-          <summary className="list-none rounded-lg p-2 text-zinc-700 transition-colors hover:bg-mist">
+          <summary className="list-none p-2 text-zinc-300 transition-colors hover:text-white">
             <span className="sr-only">Toggle menu</span>
             <svg
               viewBox="0 0 24 24"
@@ -60,21 +93,35 @@ export function SiteNav() {
               <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
             </svg>
           </summary>
-          <div className="absolute right-0 mt-2 w-72 rounded-xl border border-line bg-paper p-3 shadow-lift">
+          <div className="absolute right-0 mt-2 w-72 border border-zinc-800 bg-zinc-950 p-3 shadow-lift">
             {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="block rounded-lg px-3 py-3 text-base font-medium text-zinc-700 hover:bg-mist"
+                aria-current={isActive(l.href) ? "page" : undefined}
+                className={cn(
+                  "block border-l-2 px-3 py-3 text-base font-medium",
+                  isActive(l.href)
+                    ? "border-gold-400 bg-zinc-900 text-white"
+                    : "border-transparent text-zinc-300 hover:bg-zinc-900 hover:text-white"
+                )}
               >
                 {l.label}
               </Link>
             ))}
             <div className="mt-3 grid grid-cols-2 gap-2.5">
-              <Link href="/login" className={buttonClasses("outline")}>
+              <Link
+                href="/login"
+                aria-current={pathname === "/login" ? "page" : undefined}
+                className={buttonClasses("inverse", "md", "rounded-none")}
+              >
                 Log in
               </Link>
-              <Link href="/signup" className={buttonClasses("accent")}>
+              <Link
+                href="/signup"
+                aria-current={pathname === "/signup" ? "page" : undefined}
+                className={buttonClasses("accent", "md", "rounded-none bg-gold-400 text-ink")}
+              >
                 Sign up
               </Link>
             </div>

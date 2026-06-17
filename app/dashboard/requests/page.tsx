@@ -5,6 +5,7 @@ import { updateRequestStatus } from "./actions";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty";
 import { DateBlock } from "@/components/racing";
+import { PageHeader } from "@/components/premium";
 import { cn, REQUEST_STATUS_STYLES, formatDateTime } from "@/lib/utils";
 import type { Meeting, Profile, RideRequest } from "@/lib/types";
 
@@ -17,8 +18,9 @@ interface Race {
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: { created?: string; error?: string };
+  searchParams: Promise<{ created?: string; error?: string }>;
 }) {
+  const queryParams = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -101,31 +103,26 @@ export default async function RequestsPage({
     (me.role === "agent" && me.verification_status === "approved");
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-turf-600">
-            Ride requests
-          </p>
-          <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-            Requests
-          </h1>
-        </div>
-        {canCreate ? (
+    <div className="mx-auto w-full max-w-4xl">
+      <PageHeader
+        eyebrow="Ride requests"
+        title="Requests"
+        description="Track every offer from initial request through acceptance, assignment and ride chat."
+        action={canCreate ? (
           <Link href="/dashboard/requests/new" className={buttonClasses("accent", "sm")}>
             New request
           </Link>
         ) : null}
-      </div>
+      />
 
-      {searchParams.created ? (
+      {queryParams.created ? (
         <div className="mb-4 rounded-2xl border border-turf-200 bg-turf-50 p-4 text-sm text-turf-800">
           Request sent. You will see the answer here and in Messages once assigned.
         </div>
       ) : null}
-      {searchParams.error ? (
+      {queryParams.error ? (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          Something went wrong: {searchParams.error}
+          Something went wrong: {queryParams.error}
         </div>
       ) : null}
 

@@ -24,6 +24,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all",
         active
@@ -84,6 +85,7 @@ export function MeetingsFilterBar({
         <button
           type="button"
           onClick={() => toggleType("race")}
+          aria-pressed={isRaces}
           className={cn(
             "rounded-[10px] px-5 py-2 text-sm font-semibold transition-all",
             isRaces
@@ -96,6 +98,7 @@ export function MeetingsFilterBar({
         <button
           type="button"
           onClick={() => toggleType("trial")}
+          aria-pressed={!isRaces}
           className={cn(
             "rounded-[10px] px-5 py-2 text-sm font-semibold transition-all",
             !isRaces
@@ -137,10 +140,19 @@ export function MeetingsFilterBar({
           >
             Sunday
           </FilterChip>
+          {activeDay || activeCat ? (
+            <button
+              type="button"
+              onClick={() => update({ day: null, cat: null })}
+              className="px-2 py-1.5 text-sm font-medium text-zinc-400 transition-colors hover:text-ink"
+            >
+              Clear filters
+            </button>
+          ) : null}
         </div>
       )}
 
-      <p className="text-xs text-zinc-400">
+      <p className="text-xs text-zinc-400" aria-live="polite">
         {totalCount} {totalCount === 1 ? "meeting" : "meetings"}
       </p>
     </div>

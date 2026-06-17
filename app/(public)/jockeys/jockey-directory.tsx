@@ -73,6 +73,7 @@ export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Prop
                                               <div className="flex flex-wrap items-center gap-2">
                                                         {["North Island", "South Island"].map((i) => (
                                                                         <button key={i} type="button" onClick={() => selectIsland(i)}
+                                                                                      aria-pressed={island === i}
                                                                                       className={cn("rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
                                                                                                       island === i ? "border-ink bg-ink text-white" : "border-line bg-white text-zinc-700 hover:border-zinc-400")}>
                                                                                                                     {i}
@@ -88,6 +89,7 @@ export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Prop
                                                               <div className="flex flex-wrap gap-2">
                                                                           {activeRegions.map((r) => (
                                                                                           <button key={r} type="button" onClick={() => selectRegion(r)}
+                                                                                                          aria-pressed={region === r}
                                                                                                           className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                                                                                                                             region === r ? "border-turf-600 bg-turf-600 text-white" : "border-line bg-white text-zinc-600 hover:border-turf-400")}>
                                                                                                                                             {r}
@@ -118,7 +120,7 @@ export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Prop
                                                                                                                                                     They unlock their full profile the moment they sign up.
                                                                                                                                                                   </p>
                                                                                                                                                                               </div>
-                                                                                                                                                                                          <Link href="/signup" className={buttonClasses("outline", "sm")}>I am a jockey, sign me up</Link>
+                                                                                                                                                                                          <Link href="/signup?role=jockey" className={buttonClasses("outline", "sm")}>I am a jockey, sign me up</Link>
                                                                                                                                                                                                     </div>
                                                                                                                                                                                                               {filteredRegistry.length > 0 ? (
                                                                                                                                                                                                                             <RegistryPeopleList people={filteredRegistry} />

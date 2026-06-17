@@ -8,7 +8,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-line bg-white shadow-card",
+        "app-panel",
         className
       )}
       {...props}
@@ -33,17 +33,17 @@ export function SectionHeading({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-6">
+    <div className="mb-7">
       {eyebrow ? (
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-turf-600">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-turf-700">
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+      <h2 className="font-display text-3xl font-semibold tracking-[-0.04em] text-ink sm:text-4xl">
         {title}
       </h2>
       {children ? (
-        <p className="mt-2 max-w-2xl text-zinc-600">{children}</p>
+        <p className="mt-3 max-w-2xl leading-7 text-zinc-600">{children}</p>
       ) : null}
     </div>
   );

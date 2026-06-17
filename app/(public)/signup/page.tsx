@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Hint, Input, Label } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import { cn } from "@/lib/utils";
+import { friendlyAuthError } from "@/lib/auth-errors";
 import type { Role } from "@/lib/types";
 
 type LicenceType = "race_jockey" | "trial_jumpout_only";
@@ -16,35 +18,33 @@ const ROLES: {
   title: string;
   blurb: string;
   icon: string;
-  free: boolean;
+  badge?: string;
 }[] = [
   {
     value: "jockey",
     title: "Jockey",
     icon: "🏇",
     blurb: "Mark your race days, share weight & claim, receive ride offers.",
-    free: false,
   },
   {
     value: "trainer",
     title: "Trainer",
     icon: "📋",
-    blurb: "Find who's riding where and send ride requests. Free forever.",
-    free: true,
+    blurb: "Find who's riding where and send structured ride requests.",
+    badge: "Free until 1 Oct 2026",
   },
   {
     value: "owner",
     title: "Owner",
     icon: "🏆",
-    blurb: "Follow your horses and track who's riding them. Free forever.",
-    free: true,
+    blurb: "Follow your horses, runners, riders and stable activity.",
+    badge: "Free until 1 Oct 2026",
   },
   {
     value: "agent",
     title: "Agent",
     icon: "🤝",
     blurb: "Manage multiple jockeys, their calendars and ride requests.",
-    free: false,
   },
 ];
 
@@ -87,7 +87,13 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
-function CheckEmail({ email }: { email: string }) {
+function CheckEmail({
+  email,
+  permitReminder,
+}: {
+  email: string;
+  permitReminder: boolean;
+}) {
   return (
     <div className="mx-auto w-full max-w-md px-4 py-20">
       <div className="rounded-2xl border border-line bg-white p-8 text-center shadow-card">
@@ -118,6 +124,13 @@ function CheckEmail({ email }: { email: string }) {
           The email may take a minute or two. Check your spam folder if you
           don&apos;t see it.
         </p>
+        {permitReminder ? (
+          <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+            After confirming your email, log in and upload your trial rider
+            permit from your profile. We do not upload identity documents until
+            the account is securely signed in.
+          </p>
+        ) : null}
         <div className="mt-6 border-t border-line pt-5">
           <Link
             href="/login"
@@ -140,6 +153,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [permitFile, setPermitFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +162,13 @@ export default function SignupPage() {
 
   const isTrialRider = role === "jockey" && licenceType === "trial_jumpout_only";
 
+  useEffect(() => {
+    const requestedRole = new URLSearchParams(window.location.search).get("role");
+    if (ROLES.some((candidate) => candidate.value === requestedRole)) {
+      setRole(requestedRole as Role);
+    }
+  }, []);
+
   const canSubmit =
     !busy &&
     !!firstName.trim() &&
@@ -155,6 +176,7 @@ export default function SignupPage() {
     !!email.trim() &&
     !!phone.trim() &&
     password.length >= 8 &&
+    password === confirmPassword &&
     (!isTrialRider || !!permitFile);
 
   async function submit() {
@@ -184,15 +206,14 @@ export default function SignupPage() {
     });
 
     if (authError) {
-      setError(authError.message);
+      setError(friendlyAuthError(authError, "Unable to create the account. Please try again."));
       setBusy(false);
       return;
     }
 
     // Upload trial rider permit (if applicable) before asking them to check email
-    if (isTrialRider && permitFile && data.user?.id) {
+    if (isTrialRider && permitFile && data.session) {
       const fd = new FormData();
-      fd.append("user_id", data.user.id);
       fd.append("file", permitFile);
       const res = await fetch("/api/upload/permit", { method: "POST", body: fd });
       if (!res.ok) {
@@ -210,7 +231,14 @@ export default function SignupPage() {
     }
   }
 
-  if (checkEmail) return <CheckEmail email={email} />;
+  if (checkEmail) {
+    return (
+      <CheckEmail
+        email={email}
+        permitReminder={isTrialRider && !!permitFile}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col px-4 py-12 sm:py-18">
@@ -233,6 +261,7 @@ export default function SignupPage() {
               key={r.value}
               type="button"
               onClick={() => setRole(r.value)}
+              aria-pressed={role === r.value}
               className={cn(
                 "relative flex flex-col items-start rounded-2xl border p-4 text-left transition-all",
                 role === r.value
@@ -240,14 +269,14 @@ export default function SignupPage() {
                   : "border-line bg-white hover:border-zinc-300 hover:bg-mist/50"
               )}
             >
-              <span className="mb-2 text-xl">{r.icon}</span>
+              <span className="mb-2 text-xl" aria-hidden="true">{r.icon}</span>
               <span className="text-sm font-semibold text-ink">{r.title}</span>
               <span className="mt-1 text-[11px] leading-relaxed text-zinc-500">
                 {r.blurb}
               </span>
-              {r.free && (
+              {r.badge && (
                 <span className="mt-2 rounded-full bg-turf-50 px-2 py-0.5 text-[10px] font-semibold text-turf-700">
-                  Free
+                  {r.badge}
                 </span>
               )}
             </button>
@@ -263,6 +292,7 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={() => setLicenceType("race_jockey")}
+              aria-pressed={licenceType === "race_jockey"}
               className={cn(
                 "flex flex-col items-start rounded-2xl border p-4 text-left transition-all",
                 licenceType === "race_jockey"
@@ -279,6 +309,7 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={() => setLicenceType("trial_jumpout_only")}
+              aria-pressed={licenceType === "trial_jumpout_only"}
               className={cn(
                 "flex flex-col items-start rounded-2xl border p-4 text-left transition-all",
                 licenceType === "trial_jumpout_only"
@@ -360,7 +391,13 @@ export default function SignupPage() {
       )}
 
       {/* Details form */}
-      <div className="mt-6 space-y-5 rounded-2xl border border-line bg-white p-6 shadow-card">
+      <form
+        className="mt-6 space-y-5 rounded-2xl border border-line bg-white p-6 shadow-card"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="first">First name</Label>
@@ -370,6 +407,7 @@ export default function SignupPage() {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Sarah"
+              required
             />
           </div>
           <div>
@@ -380,6 +418,7 @@ export default function SignupPage() {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Williams"
+              required
             />
           </div>
         </div>
@@ -393,6 +432,7 @@ export default function SignupPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.co.nz"
+            required
           />
         </div>
 
@@ -405,6 +445,7 @@ export default function SignupPage() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="021 123 4567"
+            required
           />
           {role === "trainer" && (
             <Hint>
@@ -434,18 +475,32 @@ export default function SignupPage() {
 
         <div>
           <Label htmlFor="password">Password</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submit();
-            }}
             placeholder="At least 8 characters"
+            minLength={8}
+            required
           />
           <PasswordStrength password={password} />
+        </div>
+
+        <div>
+          <Label htmlFor="confirm-password">Confirm password</Label>
+          <PasswordInput
+            id="confirm-password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            placeholder="Type it again"
+            minLength={8}
+            required
+          />
+          {confirmPassword && password !== confirmPassword ? (
+            <p className="mt-1.5 text-xs text-red-600">Passwords do not match.</p>
+          ) : null}
         </div>
 
         {role === "jockey" && !isTrialRider && (
@@ -469,15 +524,15 @@ export default function SignupPage() {
         )}
 
         {error && (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </p>
         )}
 
         <Button
+          type="submit"
           className="w-full"
           variant="accent"
-          onClick={submit}
           disabled={!canSubmit}
         >
           {busy
@@ -498,7 +553,7 @@ export default function SignupPage() {
           </Link>
           .
         </p>
-      </div>
+      </form>
 
       <p className="mt-6 text-center text-sm text-zinc-600">
         Already have an account?{" "}

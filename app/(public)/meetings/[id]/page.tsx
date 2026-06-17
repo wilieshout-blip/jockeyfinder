@@ -51,8 +51,9 @@ function positionStyle(pos: number) {
 export default async function MeetingDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = createPublicClient();
 
   let userRole: "jockey" | "agent" | "trainer" | "owner" | null = null;
@@ -81,7 +82,7 @@ export default async function MeetingDetailPage({
   const { data: meeting } = await supabase
     .from("meetings")
     .select("id, nztr_day_id, meeting_date, track, club, meeting_type, is_jumps")
-    .eq("id", params.id)
+    .eq("id", id)
     .maybeSingle<MeetingRow>();
 
   if (!meeting) notFound();
@@ -179,7 +180,7 @@ export default async function MeetingDetailPage({
   const resultRaceNums = [...resultsByRace.keys()].sort((a, b) => a - b);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <Link href="/meetings" className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-ink transition-colors">
         <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
@@ -187,21 +188,25 @@ export default async function MeetingDetailPage({
         All meetings
       </Link>
 
-      <div className="mt-5 flex items-start gap-5 sm:gap-6">
-        <DateBlock date={meeting.meeting_date} size="lg" />
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{meeting.track}</h1>
-            {meeting.is_jumps && <Badge tone="amber">Jumps</Badge>}
-            {isToday && <Badge tone="turf">Today</Badge>}
-            {isPast && !isToday && <Badge tone="neutral">Results available</Badge>}
+      <div className="premium-grid mt-5 overflow-hidden border border-white/10 bg-ink p-5 text-white shadow-premium sm:p-7">
+        <div className="flex items-start gap-5 sm:gap-6">
+          <DateBlock date={meeting.meeting_date} size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-300">
+              {meetingLabel}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <h1 className="font-display text-3xl font-semibold tracking-[-0.045em] text-white sm:text-5xl">{meeting.track}</h1>
+              {meeting.is_jumps && <Badge tone="amber">Jumps</Badge>}
+              {isToday && <Badge tone="turf">Today</Badge>}
+              {isPast && !isToday && <Badge tone="neutral">Results available</Badge>}
+            </div>
+            {meeting.club && <p className="mt-2 truncate text-zinc-400">{meeting.club}</p>}
           </div>
-          {meeting.club && <p className="mt-1 text-zinc-500 truncate">{meeting.club}</p>}
-          <p className="mt-1 text-sm text-zinc-400">{meetingLabel}</p>
         </div>
       </div>
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-3">
+      <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
@@ -217,7 +222,7 @@ export default async function MeetingDetailPage({
               {resultRaceNums.map((raceNum) => {
                 const race = resultsByRace.get(raceNum)!;
                 return (
-                  <div key={raceNum} className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+                  <div key={raceNum} className="overflow-hidden border border-line bg-white shadow-card">
                     <div className="flex items-center justify-between border-b border-line bg-mist px-4 py-3">
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Race {raceNum}</p>
@@ -256,7 +261,7 @@ export default async function MeetingDetailPage({
               requestedHorses={requestedHorses}
             />
           ) : (
-            <div className="rounded-2xl border border-line bg-white p-8 text-center">
+            <div className="border border-line bg-white p-8 text-center shadow-card">
               <p className="text-sm font-medium text-zinc-600">
                 {isPast
                   ? "No results have been synced yet for this meeting."
@@ -273,7 +278,7 @@ export default async function MeetingDetailPage({
               {jockeys.map((j) => <JockeyChip key={j.jockey_id} jockey={j} />)}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-line bg-white p-5 text-center">
+            <div className="border border-dashed border-line bg-white p-5 text-center">
               <p className="text-sm text-zinc-500">No verified jockeys have marked attendance yet.</p>
               <Link href="/jockeys" className="mt-2 block text-xs font-medium text-turf-700 hover:underline">Browse jockeys</Link>
             </div>

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail, formatMeetingDate, formatDateTime, REQUEST_STATUS_STYLES, cn } from "@/lib/utils";
-import { Card, CardBody, SectionHeading } from "@/components/ui/card";
+import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty";
@@ -10,6 +10,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { approveUser, rejectUser, markAgentPaid } from "./actions";
 import { switchToTestUser } from "./test-actions";
 import { SyncButton } from "./sync-button";
+import { PageHeader } from "@/components/premium";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +36,10 @@ async function count(admin: ReturnType<typeof createAdminClient>, table: string,
 }
 
 const TEST_ACCOUNTS = [
-  { email: "test-jockey@jockeyfinder.com", label: "Jockey", icon: "🏇", bg: "bg-turf-50 border-turf-200 hover:bg-turf-100" },
-  { email: "test-trainer@jockeyfinder.com", label: "Trainer", icon: "📋", bg: "bg-blue-50 border-blue-200 hover:bg-blue-100" },
-  { email: "test-owner@jockeyfinder.com", label: "Owner", icon: "🏆", bg: "bg-amber-50 border-amber-200 hover:bg-amber-100" },
-  { email: "test-agent@jockeyfinder.com", label: "Agent", icon: "🤝", bg: "bg-violet-50 border-violet-200 hover:bg-violet-100" },
+  { email: "test-jockey@jockeyfinder.com", label: "Jockey", icon: "J", bg: "bg-turf-50 border-turf-200 hover:bg-turf-100" },
+  { email: "test-trainer@jockeyfinder.com", label: "Trainer", icon: "T", bg: "bg-blue-50 border-blue-200 hover:bg-blue-100" },
+  { email: "test-owner@jockeyfinder.com", label: "Owner", icon: "O", bg: "bg-amber-50 border-amber-200 hover:bg-amber-100" },
+  { email: "test-agent@jockeyfinder.com", label: "Agent", icon: "A", bg: "bg-zinc-50 border-zinc-200 hover:bg-zinc-100" },
 ];
 
 const TEST_ERROR_COPY: Record<string, string> = {
@@ -52,8 +53,9 @@ const TEST_ERROR_COPY: Record<string, string> = {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams?: { test_error?: string };
+  searchParams: Promise<{ test_error?: string }>;
 }) {
+  const queryParams = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -142,8 +144,8 @@ export default async function AdminPage({
 
   const nameById = new Map((people || []).map((p) => [p.id, p.full_name || "Unknown"]));
   const meetingById = new Map((reqMeetings || []).map((m) => [m.id, m]));
-  const testError = searchParams?.test_error
-    ? TEST_ERROR_COPY[searchParams.test_error] || "The test account sign-in failed."
+  const testError = queryParams.test_error
+    ? TEST_ERROR_COPY[queryParams.test_error] || "The test account sign-in failed."
     : null;
 
   const PendingList = ({
@@ -247,9 +249,12 @@ export default async function AdminPage({
 
   return (
     <div className="space-y-10">
-      <SectionHeading eyebrow="Admin" title="Operations console">
-        Approvals, registry checks and the race calendar feed.
-      </SectionHeading>
+      <PageHeader
+        dark
+        eyebrow="Admin"
+        title="Operations console"
+        description="Approvals, registry checks, test accounts and the race calendar feed."
+      />
 
       {testError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -280,7 +285,7 @@ export default async function AdminPage({
               <button
                 type="submit"
                 className={cn(
-                  "w-full rounded-2xl border p-4 text-left transition-all",
+                  "premium-card-hover w-full border p-4 text-left",
                   account.bg
                 )}
               >

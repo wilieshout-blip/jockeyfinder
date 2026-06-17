@@ -5,11 +5,10 @@ import { fetchAndSyncMeetingEntries } from "@/lib/loveracing-entries";
 // Called by Vercel cron: "0 6 * * *" (6am NZT daily)
 // Also callable from admin UI with ?secret=CRON_SECRET
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get("secret");
+  const secret = process.env.CRON_SECRET;
   if (
-    secret !== process.env.CRON_SECRET &&
-    request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`
+    !secret ||
+    request.headers.get("authorization") !== `Bearer ${secret}`
   ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

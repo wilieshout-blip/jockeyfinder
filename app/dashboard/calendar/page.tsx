@@ -6,6 +6,7 @@ import { AttendanceToggle } from "@/components/attendance-toggle";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty";
 import { cn, nzToday, nzDatePlusDays } from "@/lib/utils";
+import { PageHeader } from "@/components/premium";
 import type { Meeting, Profile } from "@/lib/types";
 
 interface AttendanceRow {
@@ -16,8 +17,9 @@ interface AttendanceRow {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: { jockey?: string };
+  searchParams: Promise<{ jockey?: string }>;
 }) {
+  const queryParams = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -53,7 +55,7 @@ export default async function CalendarPage({
       managed = data ?? [];
     }
     target =
-      managed.find((j) => j.id === searchParams.jockey) ?? managed[0] ?? null;
+      managed.find((j) => j.id === queryParams.jockey) ?? managed[0] ?? null;
   }
 
   const { data: meetings } = await supabase
@@ -81,20 +83,18 @@ export default async function CalendarPage({
   const attendingCount = [...attendance.values()].filter(Boolean).length;
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-turf-600">
-          Next 60 days
-        </p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-          My calendar
-        </h1>
-        <p className="mt-2 text-zinc-600">
+    <div className="mx-auto w-full max-w-4xl">
+      <PageHeader
+        eyebrow="Next 60 days"
+        title="My calendar"
+        description={
+          <>
           Tap the meetings {me.role === "agent" ? "your jockey plans" : "you plan"} to
           ride at. Your current weight and claim are saved with each meeting,
           and verified profiles show publicly to trainers.
-        </p>
-      </div>
+          </>
+        }
+      />
 
       {me.role === "agent" ? (
         managed.length > 0 ? (

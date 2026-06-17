@@ -15,8 +15,9 @@ export const dynamic = "force-dynamic";
 export default async function AgentPage({
   searchParams,
 }: {
-  searchParams: { error?: string; linked?: string };
+  searchParams: Promise<{ error?: string; linked?: string }>;
 }) {
+  const queryParams = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -79,12 +80,12 @@ export default async function AgentPage({
         Manage availability and ride requests on behalf of the riders you represent.
       </SectionHeading>
 
-      {searchParams.error && errorMessages[searchParams.error] && (
+      {queryParams.error && errorMessages[queryParams.error] && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {errorMessages[searchParams.error]}
+          {errorMessages[queryParams.error]}
         </div>
       )}
-      {searchParams.linked && (
+      {queryParams.linked && (
         <div className="rounded-xl border border-turf-200 bg-turf-50 px-4 py-3 text-sm text-turf-700">
           Jockey linked. You can now set their calendar and send requests for them.
         </div>

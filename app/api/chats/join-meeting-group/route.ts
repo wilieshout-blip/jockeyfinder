@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isSameOriginRequest, isUuid } from "@/lib/security";
 
 /**
  * POST /api/chats/join-meeting-group
@@ -9,6 +10,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * then adds the jockey as a participant (idempotent).
  */
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+  }
+
   // Verify the caller is authenticated
   const supabase = await createClient();
   const {
@@ -18,14 +23,57 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
   const { meetingId, userId } = body as { meetingId?: string; userId?: string };
-  if (!meetingId || !userId) {
+  if (!isUuid(meetingId) || !isUuid(userId)) {
     return NextResponse.json({ error: "meetingId and userId required" }, { status: 400 });
   }
 
   // Use admin client so RLS doesn't block thread creation
   const admin = createAdminClient();
+
+  const { data: targetProfile } = await admin
+    .from("profiles")
+    .select("id, role, verification_status")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (
+    !targetProfile ||
+    targetProfile.role !== "jockey" ||
+    targetProfile.verification_status !== "approved"
+  ) {
+    return NextResponse.json({ error: "Jockey is not approved" }, { status: 403 });
+  }
+
+  if (userId !== user.id) {
+    const [{ data: caller }, { data: link }] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("role, verification_status")
+        .eq("id", user.id)
+        .maybeSingle(),
+      admin
+        .from("agent_jockeys")
+        .select("jockey_id")
+        .eq("agent_id", user.id)
+        .eq("jockey_id", userId)
+        .maybeSingle(),
+    ]);
+
+    if (
+      caller?.role !== "agent" ||
+      caller.verification_status !== "approved" ||
+      !link
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
 
   // 1. Find or create the meeting_group thread
   let threadId: string;

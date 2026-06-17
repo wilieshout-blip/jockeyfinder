@@ -66,23 +66,23 @@ export function AppNav({
 
   const linkClass = (href: string) =>
     cn(
-      "block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-      pathname === href
-        ? "bg-ink text-white"
-        : "text-zinc-600 hover:bg-mist hover:text-ink"
+      "block border-b-2 px-2.5 py-5 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors",
+      pathname === href || (href !== "/dashboard" && pathname.startsWith(href))
+        ? "border-gold-400 text-white"
+        : "border-transparent text-zinc-500 hover:text-white"
     );
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950 text-white shadow-[0_8px_30px_-18px_rgba(0,0,0,0.8)]">
+      <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
-          <Logo href="/dashboard" />
+          <Logo href="/dashboard" dark />
           <nav className="hidden items-center gap-1 lg:flex" aria-label="App">
             {items.map((i) => (
               <Link
                 key={i.href}
                 href={i.href}
-                className={cn(linkClass(i.href), "flex items-center py-2")}
+                className={cn(linkClass(i.href), "flex items-center")}
               >
                 {i.label}
                 <NavBadge count={badges[i.href] ?? 0} />
@@ -95,19 +95,19 @@ export function AppNav({
           <div className="flex items-center gap-2.5">
             <Avatar src={photoUrl} name={name} size="sm" />
             <div className="leading-tight">
-              <p className="max-w-[160px] truncate text-sm font-medium text-ink">{name}</p>
-              <p className="text-xs capitalize text-zinc-500">{role}</p>
+              <p className="max-w-[160px] truncate text-sm font-medium text-white">{name}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{role}</p>
             </div>
           </div>
           <form action="/auth/signout" method="post">
-            <button className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-500 hover:bg-mist hover:text-ink">
+            <button className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 hover:text-white">
               Log out
             </button>
           </form>
         </div>
 
         <button
-          className="rounded-lg p-2 text-zinc-700 hover:bg-mist lg:hidden"
+          className="p-2 text-zinc-300 hover:text-white lg:hidden"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-label="Toggle menu"
@@ -123,28 +123,28 @@ export function AppNav({
       </div>
 
       {open ? (
-        <div className="border-t border-line bg-white px-4 pb-5 pt-2 lg:hidden">
+        <div className="border-t border-zinc-800 bg-zinc-950 px-4 pb-5 pt-2 lg:hidden">
           {items.map((i) => (
             <Link
               key={i.href}
               href={i.href}
               onClick={() => setOpen(false)}
-              className={cn(linkClass(i.href), "flex items-center")}
+              className={cn(linkClass(i.href), "flex items-center py-3")}
             >
               {i.label}
               <NavBadge count={badges[i.href] ?? 0} />
             </Link>
           ))}
-          <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
+          <div className="mt-4 flex items-center justify-between border-t border-zinc-800 pt-4">
             <div className="flex items-center gap-2.5">
               <Avatar src={photoUrl} name={name} size="sm" />
               <div className="leading-tight">
-                <p className="text-sm font-medium text-ink">{name}</p>
+                <p className="text-sm font-medium text-white">{name}</p>
                 <p className="text-xs capitalize text-zinc-500">{role}</p>
               </div>
             </div>
             <form action="/auth/signout" method="post">
-              <button className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-500 hover:bg-mist">
+              <button className="px-3 py-2 text-sm font-medium text-zinc-500 hover:text-white">
                 Log out
               </button>
             </form>

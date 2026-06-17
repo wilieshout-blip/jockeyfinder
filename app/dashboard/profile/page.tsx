@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 import { Badge, VerifiedBadge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/premium";
 import type { Profile } from "@/lib/types";
 
 export default async function ProfilePage() {
@@ -20,17 +21,12 @@ export default async function ProfilePage() {
   if (!profile) redirect("/login");
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-turf-600">
-            Your profile
-          </p>
-          <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-            Profile settings
-          </h1>
-        </div>
-        {profile.verified ? (
+    <div className="mx-auto w-full max-w-3xl">
+      <PageHeader
+        eyebrow="Your profile"
+        title="Profile settings"
+        description="Keep the identity, contact and racing details shown across your account accurate."
+        action={profile.verified ? (
           <VerifiedBadge />
         ) : (
           <Badge tone={profile.verification_status === "rejected" ? "red" : "amber"}>
@@ -39,7 +35,7 @@ export default async function ProfilePage() {
               : "Awaiting verification"}
           </Badge>
         )}
-      </div>
+      />
 
       <ProfileForm profile={profile} email={user.email ?? ""} />
     </div>

@@ -15,7 +15,7 @@ export function DateBlock({
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col items-center justify-center rounded-xl border border-line bg-mist text-center",
+        "flex shrink-0 flex-col items-center justify-center rounded-lg border border-line bg-mist text-center",
         size === "lg" ? "h-20 w-20" : "h-16 w-16"
       )}
     >
@@ -42,7 +42,7 @@ export function JockeyChip({ jockey }: { jockey: PublicAttendance }) {
   return (
     <Link
       href={`/jockeys/${jockey.jockey_id}`}
-      className="flex items-center gap-3 rounded-xl border border-line bg-white px-3 py-2.5 transition-colors hover:border-turf-200 hover:bg-turf-50/40"
+      className="flex items-center gap-3 rounded-lg border border-line bg-white px-3 py-2.5 transition-all hover:border-turf-300 hover:bg-turf-50/40"
     >
       <Avatar src={jockey.profile_photo_url} name={jockey.full_name} size="sm" />
       <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
@@ -66,10 +66,10 @@ export function MeetingCard({
   attendees: PublicAttendance[];
 }) {
   return (
-    <article className="rounded-2xl border border-line bg-white p-4 shadow-card transition-shadow hover:border-turf-200 hover:shadow-lift sm:p-5">
+    <article className="premium-card-hover border border-line bg-white p-4 shadow-card sm:p-5">
       <Link
         href={`/meetings/${meeting.id}`}
-        className="group flex items-start gap-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-turf-500 focus:ring-offset-2"
+        className="group flex items-start gap-4 transition-colors focus:outline-none focus:ring-2 focus:ring-turf-500 focus:ring-offset-2"
       >
         <DateBlock date={meeting.meeting_date} />
         <div className="min-w-0 flex-1">

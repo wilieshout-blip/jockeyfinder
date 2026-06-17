@@ -5,8 +5,8 @@ type Variant = "primary" | "accent" | "outline" | "ghost" | "danger" | "inverse"
 type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-ink text-white hover:bg-zinc-800 active:bg-zinc-900",
-  accent: "bg-turf-600 text-white hover:bg-turf-700 active:bg-turf-800",
+  primary: "bg-ink text-white hover:bg-zinc-800 active:bg-zinc-900 shadow-sm",
+  accent: "bg-turf-700 text-white hover:bg-turf-600 active:bg-turf-800 shadow-sm",
   outline:
     "border border-line bg-white text-ink hover:border-zinc-400 hover:bg-mist",
   ghost: "text-zinc-700 hover:bg-mist",
@@ -27,8 +27,8 @@ export function buttonClasses(
   className?: string
 ) {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-xl font-medium",
-    "transition-colors focus-visible:outline-none focus-visible:ring-2",
+    "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+    "transition-all focus-visible:outline-none focus-visible:ring-2",
     "focus-visible:ring-turf-600 focus-visible:ring-offset-2",
     "disabled:pointer-events-none disabled:opacity-50",
     variants[variant],

@@ -16,10 +16,12 @@ const display = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  ),
   title: {
-    default: "JockeyFinder · Plan rides. Book jockeys faster.",
-    template: "%s · JockeyFinder",
+    default: "JockeyFinder - Plan rides. Book jockeys faster.",
+    template: "%s - JockeyFinder",
   },
   description:
     "The ride planning platform for New Zealand thoroughbred racing. See who is riding where, request rides, and confirm bookings in one place.",
@@ -32,8 +34,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en-NZ" className={`${sans.variable} ${display.variable}`}>
-      <body><FreeUntilBanner />
-        {children}</body>
+      <body>
+        <FreeUntilBanner />
+        {children}
+      </body>
     </html>
   );
 }

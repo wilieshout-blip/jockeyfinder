@@ -3,39 +3,39 @@ import { Logo } from "@/components/logo";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line bg-white">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <footer className="border-t border-white/10 bg-zinc-950 text-white">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-sm">
-            <Logo />
-            <p className="mt-3 text-sm text-zinc-500">
-              Plan rides. Book jockeys faster. See who is riding where.
-              Built for New Zealand thoroughbred racing.
+            <Logo dark />
+            <p className="mt-4 max-w-xs text-sm leading-6 text-zinc-500">
+              Race-day bookings and operations for New Zealand thoroughbred
+              racing.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-10 text-sm">
+          <div className="grid grid-cols-2 gap-10 text-sm sm:grid-cols-3">
             <div>
-              <p className="mb-3 font-semibold text-ink">Product</p>
-              <ul className="space-y-2 text-zinc-600">
-                <li><Link className="hover:text-ink" href="/meetings">Race meetings</Link></li>
-                <li><Link className="hover:text-ink" href="/jockeys">Jockey directory</Link></li>
-                <li><Link className="hover:text-ink" href="/trainers">Trainer directory</Link></li>
-                <li><Link className="hover:text-ink" href="/signup">Sign up</Link></li>
+              <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-300">Product</p>
+              <ul className="space-y-2.5 text-zinc-400">
+                <li><Link className="hover:text-white" href="/meetings">Race meetings</Link></li>
+                <li><Link className="hover:text-white" href="/jockeys">Jockey directory</Link></li>
+                <li><Link className="hover:text-white" href="/trainers">Trainer directory</Link></li>
+                <li><Link className="hover:text-white" href="/signup">Sign up</Link></li>
               </ul>
             </div>
             <div>
-              <p className="mb-3 font-semibold text-ink">Account</p>
-              <ul className="space-y-2 text-zinc-600">
-                <li><Link className="hover:text-ink" href="/login">Log in</Link></li>
-                <li><Link className="hover:text-ink" href="/dashboard">Dashboard</Link></li>
+              <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-300">Account</p>
+              <ul className="space-y-2.5 text-zinc-400">
+                <li><Link className="hover:text-white" href="/login">Log in</Link></li>
+                <li><Link className="hover:text-white" href="/dashboard">Dashboard</Link></li>
                 <li>
                   <a
-                    className="inline-flex items-center gap-1.5 hover:text-ink"
+                    className="inline-flex items-center gap-1.5 hover:text-white"
                     href="https://instagram.com/jockeyfinder"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden>
                       <rect x="3" y="3" width="18" height="18" rx="5" />
                       <circle cx="12" cy="12" r="4" />
                       <circle cx="17.2" cy="6.8" r="0.9" fill="currentColor" stroke="none" />
@@ -45,10 +45,18 @@ export function SiteFooter() {
                 </li>
               </ul>
             </div>
+            <div>
+              <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-300">Legal</p>
+              <ul className="space-y-2.5 text-zinc-400">
+                <li><Link className="hover:text-white" href="/privacy">Privacy policy</Link></li>
+                <li><Link className="hover:text-white" href="/terms">Terms of service</Link></li>
+                <li><a className="hover:text-white" href="mailto:Wilieshout@gmail.com">Contact</a></li>
+              </ul>
+            </div>
           </div>
         </div>
-        <div className="mt-10 flex flex-col gap-2 border-t border-line pt-6 text-xs text-zinc-400 sm:flex-row sm:justify-between">
-          <p>© {new Date().getFullYear()} JockeyFinder. All rights reserved.</p>
+        <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-zinc-600 sm:flex-row sm:justify-between">
+          <p>&copy; {new Date().getFullYear()} JockeyFinder. All rights reserved.</p>
           <p>Race calendar data sourced from LoveRacing / NZTR.</p>
         </div>
       </div>

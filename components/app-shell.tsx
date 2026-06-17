@@ -61,7 +61,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/dashboard/profile");
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="app-surface min-h-screen">
       <AppNav
         name={profile?.full_name || user.email || "Account"}
         role={profile?.role ?? "owner"}
@@ -72,8 +72,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         <AgentBar jockeys={managedJockeys} />
       )}
       {paywallActive && !paywallBypassed ? (
-        <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:pl-6">
-          <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
+        <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-7 sm:px-6 lg:px-8 lg:pt-9">
+          <div className="mx-auto max-w-xl border border-gold-200 bg-gold-50 p-8 text-center shadow-card">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-600">Subscription required</p>
             <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">Your free trial has ended</h1>
             <p className="mt-3 text-sm text-zinc-600">
@@ -86,7 +86,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       ) : (
-        <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:pl-6">
+        <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-7 sm:px-6 lg:px-8 lg:pt-9">
           {children}
         </main>
       )}

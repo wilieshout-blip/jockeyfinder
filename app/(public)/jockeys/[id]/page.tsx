@@ -42,11 +42,16 @@ function seasonLabel(): string {
   return startYear + "\u2013" + String(startYear + 1).slice(2) + " Season";
 }
 
-export default async function JockeyProfilePage({ params }: { params: { id: string } }) {
+export default async function JockeyProfilePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
   const supabase = createPublicClient();
 
   const { data: jockey } = await supabase
-    .from("public_profiles").select("*").eq("id", params.id).eq("role", "jockey")
+    .from("public_profiles").select("*").eq("id", id).eq("role", "jockey")
     .maybeSingle<PublicJockey>();
   if (!jockey) notFound();
 

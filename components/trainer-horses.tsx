@@ -24,15 +24,18 @@ export function TrainerHorses({ initialLinks, role = "trainer" }: Props) {
   const [showSearch, setShowSearch] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
-  const debounce = useRef<ReturnType<typeof setTimeout>>();
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (query.length < 2) { setResults([]); return; }
-    clearTimeout(debounce.current);
+    if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(async () => {
       const res = await fetch(`/api/horses/search?q=${encodeURIComponent(query)}`);
-      setResults(await res.json());
+      if (res.ok) setResults(await res.json());
     }, 300);
+    return () => {
+      if (debounce.current) clearTimeout(debounce.current);
+    };
   }, [query]);
 
   async function addHorse(horse: SearchResult) {
