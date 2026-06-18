@@ -15,16 +15,34 @@ const display = Space_Grotesk({
   display: "swap",
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.jockeyfinder.com";
+
+const description =
+  "The ride planning platform for New Zealand thoroughbred racing. See who is riding where, request rides, and confirm bookings in one place.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  ),
+  metadataBase: new URL(siteUrl),
+  applicationName: "JockeyFinder",
   title: {
     default: "JockeyFinder - Plan rides. Book jockeys faster.",
     template: "%s - JockeyFinder",
   },
-  description:
-    "The ride planning platform for New Zealand thoroughbred racing. See who is riding where, request rides, and confirm bookings in one place.",
+  description,
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    locale: "en_NZ",
+    siteName: "JockeyFinder",
+    url: siteUrl,
+    title: "JockeyFinder — Race day bookings, simplified.",
+    description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "JockeyFinder — Race day bookings, simplified.",
+    description,
+  },
 };
 
 export default function RootLayout({

@@ -46,15 +46,41 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  compress: true,
   typescript: { ignoreBuildErrors: false },
+  productionBrowserSourceMaps: false,
+  images: {
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 2678400,
+  },
   turbopack: {
     root: process.cwd(),
   },
   async headers() {
+    const longCache = [
+      {
+        key: "Cache-Control",
+        value: "public, max-age=31536000, immutable",
+      },
+    ];
     return [
       {
         source: "/(.*)",
         headers: securityHeaders,
+      },
+      {
+        // Static media in /public — content rarely changes; cache hard.
+        source: "/videos/:path*",
+        headers: longCache,
+      },
+      {
+        source: "/brand/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=604800, stale-while-revalidate=86400",
+          },
+        ],
       },
     ];
   },
