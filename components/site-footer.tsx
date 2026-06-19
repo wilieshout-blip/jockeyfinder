@@ -56,9 +56,15 @@ export function SiteFooter() {
             </div>
           </div>
         </div>
-        <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-zinc-600 sm:flex-row sm:justify-between">
-          <p>&copy; {new Date().getFullYear()} JockeyFinder. All rights reserved.</p>
-          <p>Race calendar data sourced from LoveRacing / NZTR.</p>
+        <div className="mt-12 border-t border-white/10 pt-6 text-xs text-zinc-600">
+          <p className="text-zinc-500">
+            JockeyFinder is an independent platform and is not affiliated with
+            or endorsed by New Zealand Thoroughbred Racing or LOVERACING.NZ.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-between">
+            <p>&copy; {new Date().getFullYear()} JockeyFinder. All rights reserved.</p>
+            <p>Race calendar data sourced from LoveRacing / NZTR.</p>
+          </div>
         </div>
       </div>
     </footer>

@@ -5,7 +5,7 @@ import { RegistryPeopleList } from "@/components/registry-people-list";
 import type { RegistryPerson } from "@/components/registry-people-list";
 
 /**
- * People from the official NZTR register who have not claimed their
+ * People from the public NZTR register who have not claimed their
  * JockeyFinder profile yet. Shows contact info from the registry.
  * Once they sign up with their registered phone number their live
  * profile takes over and they disappear from this list.
@@ -38,7 +38,7 @@ export async function RegistryPeople({
             Not on JockeyFinder yet
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-            Licensed {role}s from the official register. Tap a name to see their
+            Licensed {role}s listed on the public NZTR register. Tap a name to see their
             contact info. They unlock their full profile the moment they sign up.
           </p>
         </div>

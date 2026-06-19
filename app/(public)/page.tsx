@@ -76,7 +76,7 @@ const workflow = [
   {
     number: "01",
     title: "The calendar fills itself",
-    body: "Upcoming NZ race meetings sync automatically from official LoveRacing and NZTR data, three months ahead.",
+    body: "Upcoming NZ race meetings sync automatically from publicly available LoveRacing and NZTR data, three months ahead.",
   },
   {
     number: "02",

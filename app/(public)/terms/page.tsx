@@ -52,6 +52,13 @@ export default function TermsPage() {
             Racing information can change and may occasionally be delayed or
             incomplete.
           </p>
+          <p>
+            Racing information shown on JockeyFinder is compiled from publicly
+            available and lawfully obtained racing sources, including New Zealand
+            Thoroughbred Racing and LOVERACING.NZ data. JockeyFinder is an
+            independent platform and is not affiliated with, endorsed by, or an
+            official service of New Zealand Thoroughbred Racing or LOVERACING.NZ.
+          </p>
         </section>
         <section>
           <h2>Acceptable use</h2>

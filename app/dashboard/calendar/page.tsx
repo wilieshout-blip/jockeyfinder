@@ -180,7 +180,7 @@ export default async function CalendarPage({
             </div>
           ) : (
             <EmptyState title="No meetings loaded yet">
-              Meetings sync from the official NZ racing calendar. Once the
+              Meetings sync from the public NZ racing calendar. Once the
               first sync has run they will appear here.
             </EmptyState>
           )}

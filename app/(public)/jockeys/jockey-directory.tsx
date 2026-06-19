@@ -116,7 +116,7 @@ export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Prop
                                                                                         <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">NZTR register</p>
                                                                                                       <h2 className="font-display text-xl font-semibold tracking-tight text-ink">Not on JockeyFinder yet</h2>
                                                                                                                     <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-                                                                                                                                    Licensed jockeys from the official register. Tap a name to see their contact info.
+                                                                                                                                    Licensed jockeys listed on the public NZTR register. Tap a name to see their contact info.
                                                                                                                                                     They unlock their full profile the moment they sign up.
                                                                                                                                                                   </p>
                                                                                                                                                                               </div>
