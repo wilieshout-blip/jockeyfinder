@@ -12,6 +12,12 @@ import type { PublicAttendance } from "@/lib/types";
 import { RaceDayAccordions } from "./race-day-accordions";
 import type { RaceEntryData, RaceData } from "./race-day-accordions";
 
+interface TrackCondition {
+  label: string;
+  value: string;
+  icon: string | null;
+}
+
 interface MeetingRow {
   id: string;
   nztr_day_id: number | null;
@@ -20,6 +26,7 @@ interface MeetingRow {
   club: string | null;
   meeting_type: string | null;
   is_jumps: boolean;
+  track_conditions: TrackCondition[] | null;
 }
 
 interface RaceRow {
@@ -83,7 +90,7 @@ export default async function MeetingDetailPage({
 
   const { data: meeting } = await supabase
     .from("meetings")
-    .select("id, nztr_day_id, meeting_date, track, club, meeting_type, is_jumps")
+    .select("id, nztr_day_id, meeting_date, track, club, meeting_type, is_jumps, track_conditions")
     .eq("id", id)
     .maybeSingle<MeetingRow>();
 
@@ -117,7 +124,7 @@ export default async function MeetingDetailPage({
     const raceIdMap = new Map(racesFromDb.map((r) => [r.race_number, r.id]));
     const { data } = await supabase
       .from("race_entries")
-      .select("id, race_number, horse_number, horse_name, jockey_name, trainer_name, barrier")
+      .select("id, race_number, horse_number, horse_name, jockey_name, trainer_name, barrier, weight, rating, sire, dam, age_sex, form, nztr_horse_id")
       .eq("nztr_day_id", meeting.nztr_day_id)
       .order("race_number", { ascending: true })
       .order("barrier", { ascending: true, nullsFirst: false })
@@ -209,6 +216,19 @@ export default async function MeetingDetailPage({
           </div>
         </div>
       </div>
+
+      {Array.isArray(meeting.track_conditions) && meeting.track_conditions.length > 0 ? (
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {meeting.track_conditions.map((c) => (
+            <div key={c.label} className="border border-line bg-white px-3 py-2.5 shadow-card">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                {c.label}
+              </p>
+              <p className="mt-0.5 text-sm font-semibold text-ink">{c.value}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">

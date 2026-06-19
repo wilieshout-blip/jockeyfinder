@@ -13,6 +13,13 @@ export interface RaceEntryData {
   trainer_name: string | null;
   barrier: number | null;
   race_id: string | null;
+  weight: number | null;
+  rating: number | null;
+  sire: string | null;
+  dam: string | null;
+  age_sex: string | null;
+  form: string | null;
+  nztr_horse_id: string | null;
 }
 
 export interface RaceData {
@@ -64,6 +71,16 @@ function uniqueRiders(entries: RaceEntryData[]): number {
   return new Set(
     entries.filter((e) => e.jockey_name).map((e) => normalize(e.jockey_name))
   ).size;
+}
+
+function HorseDetail({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-zinc-400">{label}</dt>
+      <dd className="text-right font-medium text-ink">{value}</dd>
+    </div>
+  );
 }
 
 interface RequestButtonProps {
@@ -163,6 +180,7 @@ export function RaceDayAccordions({
   );
   const [query, setQuery] = useState("");
   const [openRidesOnly, setOpenRidesOnly] = useState(false);
+  const [openHorse, setOpenHorse] = useState<string | null>(null);
 
   const raceMap = useMemo(
     () => new Map(races.map((r) => [r.race_number, r])),
@@ -328,52 +346,94 @@ export function RaceDayAccordions({
                     {shownEntries.map((entry) => {
                       const alreadyRequested =
                         requestedHorses[raceNum]?.has(entry.horse_name) ?? false;
+                      const horseOpen = openHorse === entry.id;
+                      const hasDetails = Boolean(
+                        entry.sire || entry.dam || entry.form ||
+                        entry.rating != null || entry.weight != null ||
+                        entry.age_sex
+                      );
 
                       return (
-                        <div
-                          key={entry.id}
-                          className="grid gap-3 px-4 py-3 sm:grid-cols-[auto_1fr_auto]"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-mist text-xs font-bold text-ink">
-                              {entry.horse_number ?? "-"}
-                            </span>
-                            <span className="rounded-full border border-line bg-white px-2 py-1 text-xs font-semibold text-zinc-500">
-                              B{entry.barrier ?? "-"}
-                            </span>
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-ink">
-                              {entry.horse_name}
-                            </p>
-                            <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
-                              {entry.jockey_name ? (
-                                <span className="rounded-full bg-turf-50 px-2 py-1 font-semibold text-turf-700">
-                                  Jockey: {entry.jockey_name}
-                                </span>
-                              ) : (
-                                <span className="rounded-full bg-amber-50 px-2 py-1 font-semibold text-amber-700">
-                                  Jockey open
-                                </span>
-                              )}
-                              {entry.trainer_name ? (
-                                <span className="rounded-full bg-mist px-2 py-1 font-medium text-zinc-600">
-                                  Trainer: {entry.trainer_name}
-                                </span>
-                              ) : null}
+                        <div key={entry.id} className="px-4 py-3">
+                          <div className="grid gap-3 sm:grid-cols-[auto_1fr_auto]">
+                            <div className="flex items-center gap-2">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-mist text-xs font-bold text-ink">
+                                {entry.horse_number ?? "-"}
+                              </span>
+                              <span className="rounded-full border border-line bg-white px-2 py-1 text-xs font-semibold text-zinc-500">
+                                B{entry.barrier ?? "-"}
+                              </span>
                             </div>
+
+                            <div className="min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => setOpenHorse(horseOpen ? null : entry.id)}
+                                aria-expanded={horseOpen}
+                                className="flex items-center gap-1.5 text-left"
+                              >
+                                <span className="truncate text-sm font-semibold text-ink">
+                                  {entry.horse_name}
+                                </span>
+                                {hasDetails ? (
+                                  <svg
+                                    className={cn(
+                                      "h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform",
+                                      horseOpen && "rotate-180"
+                                    )}
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                  >
+                                    <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                ) : null}
+                              </button>
+                              <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                                {entry.jockey_name ? (
+                                  <span className="rounded-full bg-turf-50 px-2 py-1 font-semibold text-turf-700">
+                                    Jockey: {entry.jockey_name}
+                                  </span>
+                                ) : (
+                                  <span className="rounded-full bg-amber-50 px-2 py-1 font-semibold text-amber-700">
+                                    Jockey open
+                                  </span>
+                                )}
+                                {entry.trainer_name ? (
+                                  <span className="rounded-full bg-mist px-2 py-1 font-medium text-zinc-600">
+                                    Trainer: {entry.trainer_name}
+                                  </span>
+                                ) : null}
+                                {entry.weight != null ? (
+                                  <span className="rounded-full bg-mist px-2 py-1 font-medium text-zinc-600">
+                                    {entry.weight}kg
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {canRequest ? (
+                              <RequestRideButton
+                                horseName={entry.horse_name}
+                                trainerName={entry.trainer_name}
+                                raceId={entry.race_id}
+                                raceNumber={raceNum}
+                                meetingId={meetingId}
+                                alreadyRequested={alreadyRequested}
+                              />
+                            ) : null}
                           </div>
 
-                          {canRequest ? (
-                            <RequestRideButton
-                              horseName={entry.horse_name}
-                              trainerName={entry.trainer_name}
-                              raceId={entry.race_id}
-                              raceNumber={raceNum}
-                              meetingId={meetingId}
-                              alreadyRequested={alreadyRequested}
-                            />
+                          {horseOpen && hasDetails ? (
+                            <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl border border-line bg-mist/40 px-4 py-3 text-xs">
+                              <HorseDetail label="Age / sex" value={entry.age_sex} />
+                              <HorseDetail label="Weight" value={entry.weight != null ? entry.weight + "kg" : null} />
+                              <HorseDetail label="Sire" value={entry.sire} />
+                              <HorseDetail label="Dam" value={entry.dam} />
+                              <HorseDetail label="Recent form" value={entry.form} />
+                              <HorseDetail label="Rating" value={entry.rating != null ? String(entry.rating) : null} />
+                            </dl>
                           ) : null}
                         </div>
                       );
