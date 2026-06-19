@@ -45,9 +45,9 @@ const TEST_ACCOUNTS = [
 const TEST_ERROR_COPY: Record<string, string> = {
   unknown: "That test account is not configured.",
   setup_failed:
-    "I could not create or refresh the test account. Check the Supabase service role key.",
+    "Could not sign in to that test account. It may need re-seeding in Supabase.",
   link_failed:
-    "The test account exists, but Supabase did not return a usable sign-in link.",
+    "The test account exists, but the sign-in did not complete.",
 };
 
 export default async function AdminPage({
@@ -273,7 +273,7 @@ export default async function AdminPage({
           </span>
         </div>
         <p className="mb-4 text-sm text-zinc-500">
-          Click any card to instantly sign in as that test user via a one-time link.
+          Click any card to instantly sign in as that test user.
           Your admin session ends — log back in as{" "}
           <span className="font-medium text-ink">wilieshout@gmail.com</span> to return here.
           Password for all test accounts: <span className="font-mono font-medium text-ink">TestPass123!</span>

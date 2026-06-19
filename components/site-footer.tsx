@@ -50,7 +50,8 @@ export function SiteFooter() {
               <ul className="space-y-2.5 text-zinc-400">
                 <li><Link className="hover:text-white" href="/privacy">Privacy policy</Link></li>
                 <li><Link className="hover:text-white" href="/terms">Terms of service</Link></li>
-                <li><a className="hover:text-white" href="mailto:Wilieshout@gmail.com">Contact</a></li>
+                <li><a className="hover:text-white" href="mailto:wilieshout@gmail.com">wilieshout@gmail.com</a></li>
+                <li><a className="hover:text-white" href="tel:+642041618711">+64 204 1618711</a></li>
               </ul>
             </div>
           </div>
