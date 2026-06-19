@@ -20,9 +20,9 @@ export const ROLE_TRIAL_DAYS: Record<string, number> = {
 };
 
 export const ROLE_PRICE_DISPLAY: Record<string, string> = {
-  jockey: "$20 NZD/week",
-  trainer: "$5 NZD/week",
-  owner: "$2 NZD/week",
+  jockey: "$12.99 NZD/week",
+  trainer: "$4.99 NZD/week",
+  owner: "$1.99 NZD/week",
 };
 
 export function getPriceId(role: string): string | undefined {

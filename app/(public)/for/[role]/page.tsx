@@ -32,7 +32,7 @@ const roleContent: Record<RoleKey, RoleContent> = {
     introduction:
       "JockeyFinder gives riders one calm place to publish availability, keep riding details current, receive offers and turn accepted rides into a clear race-day plan.",
     accent: "J",
-    price: "100-day free trial, then $40 NZD per month",
+    price: "100-day free trial, then $12.99 NZD per week",
     verification:
       "Race jockey profiles become public after NZTR matching or manual approval. Trial riders upload their permit and remain limited to eligible meetings.",
     primaryAction: "Create a jockey account",
@@ -98,7 +98,7 @@ const roleContent: Record<RoleKey, RoleContent> = {
     introduction:
       "JockeyFinder brings meeting availability, rider details, horse assignments and written confirmations into one trainer workspace built around the way a stable plans race day.",
     accent: "T",
-    price: "$5 NZD per week",
+    price: "$4.99 NZD per week",
     verification:
       "Trainer accounts are checked against the NZTR registry. A matching mobile number can speed up approval and protect the directory from impersonation.",
     primaryAction: "Create a trainer account",
@@ -164,7 +164,7 @@ const roleContent: Record<RoleKey, RoleContent> = {
     introduction:
       "The owner hub connects horses, race-card matches, runners, trainers, jockeys and booking messages so the important race-day picture is visible at a glance.",
     accent: "O",
-    price: "$2 NZD per week",
+    price: "$1.99 NZD per week",
     verification:
       "Owners can link a horse and confirm ownership matches from available race-card data. Private stable and booking information remains limited to authorised accounts.",
     primaryAction: "Create an owner account",

@@ -18,6 +18,8 @@ export interface RaceEntryData {
 export interface RaceData {
   race_number: number;
   name: string | null;
+  race_class: string | null;
+  distance: number | null;
   start_time: string | null;
   race_id: string | null;
 }
@@ -45,6 +47,23 @@ function formatTime(iso: string | null): string {
 
 function normalize(value: string | null | undefined) {
   return (value ?? "").toLowerCase().trim();
+}
+
+/** Race type + distance, e.g. "MDN HDL 2800m" — falls back to the race name. */
+function raceLabel(race: RaceData | undefined): string {
+  if (!race) return "";
+  const parts = [
+    race.race_class,
+    race.distance ? race.distance + "m" : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : race.name ?? "";
+}
+
+/** Count distinct riders (one jockey with 5 rides counts once). */
+function uniqueRiders(entries: RaceEntryData[]): number {
+  return new Set(
+    entries.filter((e) => e.jockey_name).map((e) => normalize(e.jockey_name))
+  ).size;
 }
 
 interface RequestButtonProps {
@@ -156,7 +175,7 @@ export function RaceDayAccordions({
     return {
       races: allRaceNums.length,
       runners: allEntries.length,
-      confirmed: allEntries.filter((e) => e.jockey_name).length,
+      confirmed: uniqueRiders(allEntries),
       open: allEntries.filter((e) => !e.jockey_name).length,
     };
   }, [allRaceNums.length, entriesByRace]);
@@ -251,7 +270,7 @@ export function RaceDayAccordions({
         const race = raceMap.get(raceNum);
         const entries = entriesByRace[raceNum] ?? [];
         const shownEntries = visibleEntries(entries);
-        const confirmedCount = entries.filter((e) => e.jockey_name).length;
+        const confirmedCount = uniqueRiders(entries);
         const isOpen = openRaces.has(raceNum);
 
         return (
@@ -269,7 +288,7 @@ export function RaceDayAccordions({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-ink">
-                  {race?.name ?? "Race " + raceNum}
+                  {raceLabel(race) || "Race " + raceNum}
                 </p>
                 <p className="text-xs text-zinc-500">
                   {[formatTime(race?.start_time ?? null), entries.length + " runners"]

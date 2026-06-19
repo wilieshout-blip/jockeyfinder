@@ -26,6 +26,8 @@ interface RaceRow {
   id: string;
   race_number: number;
   name: string | null;
+  race_class: string | null;
+  distance: number | null;
   start_time: string | null;
 }
 
@@ -103,7 +105,7 @@ export default async function MeetingDetailPage({
   if (meeting.nztr_day_id) {
     const { data } = await supabase
       .from("races")
-      .select("id, race_number, name, start_time")
+      .select("id, race_number, name, race_class, distance, start_time")
       .eq("nztr_day_id", meeting.nztr_day_id)
       .order("race_number", { ascending: true })
       .returns<RaceRow[]>();
@@ -157,6 +159,8 @@ export default async function MeetingDetailPage({
   const raceDataList: RaceData[] = racesFromDb.map((r) => ({
     race_number: r.race_number,
     name: r.name,
+    race_class: r.race_class,
+    distance: r.distance,
     start_time: r.start_time,
     race_id: r.id,
   }));
@@ -265,7 +269,7 @@ export default async function MeetingDetailPage({
               <p className="text-sm font-medium text-zinc-600">
                 {isPast
                   ? "No results have been synced yet for this meeting."
-                  : "Race entries will appear here once declared — usually 2 days before race day."}
+                  : "Race entries will appear here once declared — usually about a week before race day."}
               </p>
             </div>
           )}

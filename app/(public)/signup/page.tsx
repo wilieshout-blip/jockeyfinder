@@ -505,7 +505,7 @@ export default function SignupPage() {
 
         {role === "jockey" && !isTrialRider && (
           <div className="rounded-xl bg-turf-50 px-4 py-3 text-sm text-turf-800">
-            <p className="font-semibold">100-day free trial, then $40 NZD/mo</p>
+            <p className="font-semibold">100-day free trial, then $12.99 NZD/week</p>
             <p className="mt-0.5 text-xs text-turf-700">
               Your profile goes public once verified by our team. No card needed
               to start.

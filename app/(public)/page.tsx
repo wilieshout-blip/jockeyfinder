@@ -441,8 +441,9 @@ export default function HomePage() {
               </h2>
               <p className="mt-6 max-w-2xl text-base leading-7 text-turf-100/75">
                 Everyone has free access until 1 October 2026. After that,
-                trainers are $5/week, owners are $2/week and jockeys are
-                $40/month. Agents are onboarded individually.
+                jockeys are $12.99/week, trainers are $4.99/week and owners are
+                $1.99/week — save 10% on a 6-month plan or 15% on an annual plan.
+                Agents are onboarded individually.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 lg:flex-col">

@@ -22,6 +22,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await syncTabNzRaceCards(3);
+  const result = await syncTabNzRaceCards(10);
   return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }

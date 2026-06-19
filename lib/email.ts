@@ -168,9 +168,9 @@ export async function emailTrialReminder({
   trialEndDate: Date;
 }) {
   const prices: Record<string, string> = {
-    jockey: "$20 NZD/week",
-    trainer: "$5 NZD/week",
-    owner: "$2 NZD/week",
+    jockey: "$12.99 NZD/week",
+    trainer: "$4.99 NZD/week",
+    owner: "$1.99 NZD/week",
   };
   const price = prices[role] || "";
   const planName = role.charAt(0).toUpperCase() + role.slice(1);
