@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty";
 import { Avatar } from "@/components/ui/avatar";
 import { approveUser, rejectUser, markAgentPaid } from "./actions";
-import { switchToTestUser } from "./test-actions";
+import { TestAccountCards } from "@/components/test-account-cards";
 import { SyncButton } from "./sync-button";
 import { PageHeader } from "@/components/premium";
 
@@ -34,13 +34,6 @@ async function count(admin: ReturnType<typeof createAdminClient>, table: string,
   const { count: c } = await q;
   return c || 0;
 }
-
-const TEST_ACCOUNTS = [
-  { email: "test-jockey@jockeyfinder.com", label: "Jockey", icon: "J", bg: "bg-turf-50 border-turf-200 hover:bg-turf-100" },
-  { email: "test-trainer@jockeyfinder.com", label: "Trainer", icon: "T", bg: "bg-blue-50 border-blue-200 hover:bg-blue-100" },
-  { email: "test-owner@jockeyfinder.com", label: "Owner", icon: "O", bg: "bg-amber-50 border-amber-200 hover:bg-amber-100" },
-  { email: "test-agent@jockeyfinder.com", label: "Agent", icon: "A", bg: "bg-zinc-50 border-zinc-200 hover:bg-zinc-100" },
-];
 
 const TEST_ERROR_COPY: Record<string, string> = {
   unknown: "That test account is not configured.",
@@ -278,26 +271,7 @@ export default async function AdminPage({
           <span className="font-medium text-ink">wilieshout@gmail.com</span> to return here.
           Password for all test accounts: <span className="font-mono font-medium text-ink">TestPass123!</span>
         </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {TEST_ACCOUNTS.map((account) => (
-            <form key={account.email} action={switchToTestUser}>
-              <input type="hidden" name="email" value={account.email} />
-              <button
-                type="submit"
-                className={cn(
-                  "premium-card-hover w-full border p-4 text-left",
-                  account.bg
-                )}
-              >
-                <span className="mb-2 block text-2xl">{account.icon}</span>
-                <p className="text-sm font-semibold text-ink">
-                  Test {account.label}
-                </p>
-                <p className="mt-0.5 text-xs text-zinc-500">Sign in →</p>
-              </button>
-            </form>
-          ))}
-        </div>
+        <TestAccountCards />
       </section>
 
       {/* Stats grid */}

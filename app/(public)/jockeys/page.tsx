@@ -13,6 +13,22 @@ export const metadata: Metadata = {
     "Verified New Zealand jockeys with current riding weights, apprentice claims, and upcoming meeting attendance.",
 };
 
+// Registry names are "M K Hudson"; race-card names are "Mereana Hudson" — so
+// match on first-name initial + surname.
+function registryKey(name: string | null) {
+  if (!name) return "";
+  const clean = name
+    .replace(/^(Mr|Mrs|Ms|Miss|Dr|Prof|Rev)\.?\s+/i, "")
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  const initial = (parts[0][0] || "").toUpperCase();
+  const surname = parts[parts.length - 1].toLowerCase();
+  if (!initial || !surname) return "";
+  return initial + ":" + surname;
+}
+
 export default async function JockeysPage() {
   const supabase = createPublicClient();
 
@@ -77,6 +93,46 @@ export default async function JockeysPage() {
     .order("full_name", { ascending: true })
     .returns<RegistryPerson[]>();
 
+  // Race-card activity for unclaimed registry jockeys (matched by initial+surname).
+  const { data: activityRows } = await supabase
+    .from("race_entries")
+    .select("jockey_name, meetings(meeting_date)")
+    .not("jockey_name", "is", null)
+    .limit(5000);
+
+  const today = nzToday();
+  const activityByJockey = new Map<
+    string,
+    { runner_count: number; upcoming_runner_count: number; last_seen_date: string | null }
+  >();
+  for (const row of (activityRows ?? []) as any[]) {
+    const key = registryKey(row.jockey_name);
+    if (!key) continue;
+    const meeting = Array.isArray(row.meetings) ? row.meetings[0] : row.meetings;
+    const date = meeting?.meeting_date ?? null;
+    const current =
+      activityByJockey.get(key) ?? {
+        runner_count: 0,
+        upcoming_runner_count: 0,
+        last_seen_date: null,
+      };
+    current.runner_count += 1;
+    if (date && date >= today) current.upcoming_runner_count += 1;
+    if (date && (!current.last_seen_date || date > current.last_seen_date)) {
+      current.last_seen_date = date;
+    }
+    activityByJockey.set(key, current);
+  }
+
+  const registryWithStats: RegistryPerson[] = (registryRaw ?? []).map((person) => ({
+    ...person,
+    ...(activityByJockey.get(registryKey(person.full_name)) ?? {
+      runner_count: 0,
+      upcoming_runner_count: 0,
+      last_seen_date: null,
+    }),
+  }));
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <div className="mb-8">
@@ -96,7 +152,7 @@ export default async function JockeysPage() {
         jockeys={jockeys}
         stats={statsRows ?? []}
         counts={counts}
-        registryPeople={registryRaw ?? []}
+        registryPeople={registryWithStats}
       />
     </div>
   );

@@ -38,10 +38,18 @@ function stripTitle(name: string | null) {
     .trim();
 }
 
+// Registry names are "J Smith"; race-card names are "John Smith" — so match on
+// first-name initial + surname rather than the full normalised string.
 function trainerKey(name: string | null) {
-  return stripTitle(name)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
+  const clean = stripTitle(name)
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  const initial = (parts[0][0] || "").toUpperCase();
+  const surname = parts[parts.length - 1].toLowerCase();
+  if (!initial || !surname) return "";
+  return initial + ":" + surname;
 }
 
 function meetingDate(row: TrainerActivityRow) {
