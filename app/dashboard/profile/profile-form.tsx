@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { uploadAvatar } from "./avatar-action";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
@@ -219,41 +220,22 @@ export function ProfileForm({
           previewUrlRef.current = preview;
           setPhotoUrl(preview);
       
-          const path = `${profile.id}/${Date.now()}.jpg`;
-          const { error: upErr } = await supabase.storage
-                  .from("avatars")
-                  .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
-      
-          if (upErr) {
+          const fd = new FormData();
+          fd.append("file", blob, "avatar.jpg");
+          const result = await uploadAvatar(fd);
+
+          if (result.error || !result.url) {
                   setUploading(false);
-                  setError(upErr.message);
-                  // Revert preview on error
+                  setError(result.error ?? "Upload failed. Please try again.");
                   URL.revokeObjectURL(preview);
                   previewUrlRef.current = null;
                   setPhotoUrl(profile.profile_photo_url);
                   return;
           }
-      
-      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      const publicUrl = data.publicUrl;
-
-      const { error: profileErr } = await supabase
-              .from("profiles")
-              .update({ profile_photo_url: publicUrl })
-              .eq("id", profile.id);
-
-      if (profileErr) {
-              setUploading(false);
-              setError(profileErr.message);
-              URL.revokeObjectURL(preview);
-              previewUrlRef.current = null;
-              setPhotoUrl(profile.profile_photo_url);
-              return;
-      }
 
       URL.revokeObjectURL(preview);
       previewUrlRef.current = null;
-      setPhotoUrl(publicUrl);
+      setPhotoUrl(result.url);
       setUploading(false);
       setSaved(true);
       router.refresh();
