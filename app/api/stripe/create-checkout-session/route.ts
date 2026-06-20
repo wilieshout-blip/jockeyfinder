@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, getPriceId, getPlanName, ROLE_TRIAL_DAYS } from "@/lib/stripe";
+import { SITE_URL } from "@/lib/supabase/config";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +19,18 @@ export async function POST(req: NextRequest) {
 
     const role = profile.role as string;
     const priceId = getPriceId(role);
-    if (!priceId) return NextResponse.json({ error: "No subscription required for your account type" }, { status: 400 });
+    if (role === "agent" || role === "admin") {
+      return NextResponse.json(
+        { error: "No subscription is required for your account type." },
+        { status: 400 }
+      );
+    }
+    if (!priceId || !process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: "Billing is not available yet. No payment is required during the free period." },
+        { status: 503 }
+      );
+    }
 
     const stripe = getStripe();
 
@@ -48,8 +60,8 @@ export async function POST(req: NextRequest) {
         trial_period_days: trialDays,
         metadata: { user_id: user.id, role, plan: getPlanName(role) },
       },
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing?canceled=true`,
+      success_url: `${SITE_URL}/dashboard/billing?success=true`,
+      cancel_url: `${SITE_URL}/dashboard/billing?canceled=true`,
       metadata: { user_id: user.id, role },
     });
 

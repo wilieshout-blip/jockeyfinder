@@ -10,7 +10,8 @@ const FROM = "JockeyFinder <noreply@jockeyfinder.com>";
 async function sendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
     // No key configured — skip silently in dev
-    return;
+    console.warn("[email] RESEND_API_KEY is not configured");
+    return false;
   }
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -23,9 +24,12 @@ async function sendEmail(to: string, subject: string, html: string) {
     });
     if (!res.ok) {
       console.error("[email] Resend error:", res.status, await res.text());
+      return false;
     }
+    return true;
   } catch (err) {
     console.error("[email] sendEmail failed:", err);
+    return false;
   }
 }
 
@@ -189,7 +193,7 @@ export async function emailTrialReminder({
     </a>
     <p style="color:#6b7280;font-size:14px;margin-top:24px">You can cancel anytime from your billing settings.</p>
   `);
-  await sendEmail(
+  return sendEmail(
     to,
     `Your JockeyFinder trial ends in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`,
     html

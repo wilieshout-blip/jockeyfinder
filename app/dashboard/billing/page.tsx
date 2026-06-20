@@ -27,6 +27,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [subLoading, setSubLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -46,18 +47,36 @@ export default function BillingPage() {
 
   const handleSubscribe = async () => {
     setSubLoading(true);
-    const res = await fetch("/api/stripe/create-checkout-session", { method: "POST" });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    else setSubLoading(false);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setActionError(data.error || "Billing is temporarily unavailable.");
+    } catch {
+      setActionError("Billing is temporarily unavailable.");
+    }
+    setSubLoading(false);
   };
 
   const handlePortal = async () => {
     setPortalLoading(true);
-    const res = await fetch("/api/stripe/portal", { method: "POST" });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    else setPortalLoading(false);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setActionError(data.error || "Billing is temporarily unavailable.");
+    } catch {
+      setActionError("Billing is temporarily unavailable.");
+    }
+    setPortalLoading(false);
   };
 
   if (loading) return <div className="p-8 text-gray-500">Loading billing info…</div>;
@@ -114,7 +133,18 @@ export default function BillingPage() {
             )}
           </div>
 
-          {hasStripeSub ? (
+          {actionError ? (
+            <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {actionError}
+            </p>
+          ) : null}
+
+          {isFreePeriod && !hasStripeSub ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+              Subscription setup will be available before the free period ends.
+              No action is required now.
+            </div>
+          ) : hasStripeSub ? (
             <button onClick={handlePortal} disabled={portalLoading}
               className="w-full py-3 px-6 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50">
               {portalLoading ? "Opening…" : "Manage subscription →"}

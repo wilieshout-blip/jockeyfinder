@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
+import { SITE_URL } from "@/lib/supabase/config";
 
 export async function POST(_req: NextRequest) {
   try {
@@ -17,10 +18,17 @@ export async function POST(_req: NextRequest) {
     if (!sub?.stripe_customer_id)
       return NextResponse.json({ error: "No billing account found" }, { status: 404 });
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: "Billing is temporarily unavailable." },
+        { status: 503 }
+      );
+    }
+
     const stripe = getStripe();
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing`,
+      return_url: `${SITE_URL}/dashboard/billing`,
     });
 
     return NextResponse.json({ url: session.url });

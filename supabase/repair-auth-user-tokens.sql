@@ -2,7 +2,8 @@
 -- NULL values cause password sign-in and admin user queries to fail with:
 -- "Database error querying schema".
 --
--- Safe to run repeatedly.
+-- Safe to run repeatedly. The handle_new_user function in schema.sql also
+-- normalizes these fields for newly inserted users.
 update auth.users
 set
   confirmation_token = coalesce(confirmation_token, ''),

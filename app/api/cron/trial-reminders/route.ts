@@ -6,8 +6,16 @@ import { emailTrialReminder } from "@/lib/email";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    return NextResponse.json(
+      { error: "CRON_SECRET is not configured" },
+      { status: 500 }
+    );
+  }
+
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`)
+  if (authHeader !== `Bearer ${secret}`)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
@@ -22,6 +30,7 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const in3days = new Date(now.getTime() + 3 * 86_400_000);
     let sent = 0;
+    let deliveryFailed = 0;
 
     for (const profile of profiles) {
       const sub = (profile.subscriptions as unknown as Array<{status: string; trial_reminder_sent: boolean; stripe_subscription_id: string | null}>)?.[0];
@@ -31,13 +40,17 @@ export async function GET(req: NextRequest) {
       const trialEnd = getTrialEnd(profile.role, profile.trial_start_date);
       if (trialEnd > now && trialEnd <= in3days) {
         const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / 86_400_000);
-        await emailTrialReminder({
+        const delivered = await emailTrialReminder({
           to: profile.email,
           firstName: profile.first_name || "there",
           role: profile.role,
           daysLeft,
           trialEndDate: trialEnd,
         });
+        if (!delivered) {
+          deliveryFailed++;
+          continue;
+        }
         await supabase.from("subscriptions").upsert({
           user_id: profile.id,
           trial_reminder_sent: true,
@@ -46,7 +59,7 @@ export async function GET(req: NextRequest) {
         sent++;
       }
     }
-    return NextResponse.json({ sent });
+    return NextResponse.json({ sent, delivery_failed: deliveryFailed });
   } catch (err) {
     console.error("Trial reminders error:", err);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

@@ -336,15 +336,43 @@ create table if not exists public.owner_horse_claims (
 
 create index if not exists owner_horse_claims_user_idx on public.owner_horse_claims (user_id);
 
-create table if not exists public.jockey_season_stats (
-  id uuid primary key default gen_random_uuid(),
-  jockey_name text not null unique,
-  total_rides integer not null default 0,
-  wins integer not null default 0,
-  places integer not null default 0,
-  win_pct numeric not null default 0,
-  updated_at timestamptz not null default now()
-);
+create or replace view public.jockey_season_stats
+with (security_invoker = on) as
+select
+  rr.jockey_name,
+  count(*) filter (
+    where rr.race_date >= date_trunc('year', now() - interval '7 months')
+      + interval '7 months'
+  ) as total_rides,
+  count(*) filter (
+    where rr.position = 1
+      and rr.race_date >= date_trunc('year', now() - interval '7 months')
+        + interval '7 months'
+  ) as wins,
+  count(*) filter (
+    where rr.position in (1, 2, 3)
+      and rr.race_date >= date_trunc('year', now() - interval '7 months')
+        + interval '7 months'
+  ) as places,
+  round(
+    100.0
+      * count(*) filter (
+          where rr.position = 1
+            and rr.race_date >= date_trunc('year', now() - interval '7 months')
+              + interval '7 months'
+        )::numeric
+      / nullif(
+          count(*) filter (
+            where rr.race_date >= date_trunc('year', now() - interval '7 months')
+              + interval '7 months'
+          ),
+          0
+        )::numeric,
+    1
+  ) as win_pct
+from public.race_results rr
+where rr.jockey_name is not null
+group by rr.jockey_name;
 
 create table if not exists public.meeting_attendance (
   id uuid primary key default gen_random_uuid(),
@@ -503,11 +531,6 @@ create trigger owner_horse_claims_updated_at
   before update on public.owner_horse_claims
   for each row execute function public.set_updated_at();
 
-drop trigger if exists jockey_season_stats_updated_at on public.jockey_season_stats;
-create trigger jockey_season_stats_updated_at
-  before update on public.jockey_season_stats
-  for each row execute function public.set_updated_at();
-
 -- Keeps registry phone numbers normalised on the way in.
 create or replace function public.handle_registry_row()
 returns trigger
@@ -568,6 +591,23 @@ begin
     v_verified, v_vstatus, v_status
   )
   on conflict (id) do nothing;
+
+  -- Some users created through direct admin/SQL tooling can receive NULL
+  -- token strings. GoTrue expects strings and otherwise fails all password
+  -- logins with "Database error querying schema".
+  update auth.users
+  set
+    confirmation_token = coalesce(confirmation_token, ''),
+    recovery_token = coalesce(recovery_token, ''),
+    email_change_token_new = coalesce(email_change_token_new, ''),
+    email_change = coalesce(email_change, '')
+  where id = new.id
+    and (
+      confirmation_token is null
+      or recovery_token is null
+      or email_change_token_new is null
+      or email_change is null
+    );
 
   return new;
 end;
@@ -688,7 +728,6 @@ alter table public.race_results enable row level security;
 alter table public.trainer_horse_links enable row level security;
 alter table public.owner_horse_links enable row level security;
 alter table public.owner_horse_claims enable row level security;
-alter table public.jockey_season_stats enable row level security;
 alter table public.meeting_attendance enable row level security;
 alter table public.ride_requests enable row level security;
 alter table public.agent_jockeys enable row level security;
@@ -771,13 +810,7 @@ drop policy if exists "race_results_admin_write" on public.race_results;
 create policy "race_results_admin_write" on public.race_results
   for all using (public.is_admin()) with check (public.is_admin());
 
-drop policy if exists "jockey_stats_public_read" on public.jockey_season_stats;
-create policy "jockey_stats_public_read" on public.jockey_season_stats
-  for select to anon, authenticated using (true);
-
-drop policy if exists "jockey_stats_admin_write" on public.jockey_season_stats;
-create policy "jockey_stats_admin_write" on public.jockey_season_stats
-  for all using (public.is_admin()) with check (public.is_admin());
+grant select on public.jockey_season_stats to anon, authenticated;
 
 drop policy if exists "trainer_horse_links_select" on public.trainer_horse_links;
 create policy "trainer_horse_links_select" on public.trainer_horse_links
@@ -1001,7 +1034,8 @@ select
   p.riding_weight,
   p.apprentice_riding_weight,
   p.availability_notes,
-  p.created_at
+  p.created_at,
+  p.phone
 from public.profiles p
 where p.verified = true
   and p.verification_status = 'approved'
@@ -1096,6 +1130,7 @@ select
   r.role,
   r.full_name,
   r.location,
+  r.riding_weight,
   r.phone
 from public.nztr_people_registry r
 where r.role in ('jockey', 'trainer')
@@ -1253,13 +1288,23 @@ revoke execute on function public.handle_profile_changes() from anon, authentica
 revoke execute on function public.fill_attendance_snapshot() from anon, authenticated;
 revoke execute on function public.normalize_phone(text) from anon, authenticated;
 
--- RLS helpers stay executable for signed in users because
--- policies evaluate them as the querying user. Anonymous visitors
--- only touch meetings and the public views. is_admin stays granted
--- to anon because the meetings and races policies reference it.
-revoke execute on function public.has_role(uuid, text) from anon;
-revoke execute on function public.is_verified_role(uuid, text) from anon;
-revoke execute on function public.is_approved_agent_for(uuid, uuid) from anon;
-revoke execute on function public.is_thread_participant(uuid) from anon;
-revoke execute on function public.shares_thread_with(uuid) from anon;
-revoke execute on function public.shares_request_with(uuid) from anon;
+-- RLS helpers stay executable for signed-in users because policies evaluate
+-- them as the querying user. Revoke the default PUBLIC grant first; revoking
+-- only from anon is ineffective while anon inherits PUBLIC privileges.
+revoke execute on function public.has_role(uuid, text) from public;
+grant execute on function public.has_role(uuid, text) to authenticated;
+
+revoke execute on function public.is_verified_role(uuid, text) from public;
+grant execute on function public.is_verified_role(uuid, text) to authenticated;
+
+revoke execute on function public.is_approved_agent_for(uuid, uuid) from public;
+grant execute on function public.is_approved_agent_for(uuid, uuid) to authenticated;
+
+revoke execute on function public.is_thread_participant(uuid) from public;
+grant execute on function public.is_thread_participant(uuid) to authenticated;
+
+revoke execute on function public.shares_thread_with(uuid) from public;
+grant execute on function public.shares_thread_with(uuid) to authenticated;
+
+revoke execute on function public.shares_request_with(uuid) from public;
+grant execute on function public.shares_request_with(uuid) to authenticated;
