@@ -26,6 +26,18 @@ export function friendlyAuthError(
     return "That email or password is not correct.";
   }
   if (
+    lower.includes("email rate limit exceeded") ||
+    (lower.includes("rate limit") && lower.includes("email"))
+  ) {
+    return "Too many account emails were requested. Please wait an hour before trying again.";
+  }
+  if (
+    lower.includes("database error querying schema") ||
+    lower.includes("unexpected_failure")
+  ) {
+    return "JockeyFinder's account service is temporarily unavailable. Please try again shortly.";
+  }
+  if (
     lower.includes("invalid api key") ||
     lower.includes("failed to fetch") ||
     lower.includes("network")
