@@ -11,6 +11,7 @@ import { cn, nzToday } from "@/lib/utils";
 import type { PublicAttendance } from "@/lib/types";
 import { RaceDayAccordions } from "./race-day-accordions";
 import type { RaceEntryData, RaceData } from "./race-day-accordions";
+import { AttendanceToggle } from "./attendance-toggle";
 
 interface TrackCondition {
   label: string;
@@ -107,6 +108,18 @@ export default async function MeetingDetailPage({
     .returns<PublicAttendance[]>();
 
   const jockeys = attendance ?? [];
+
+  // Whether the logged-in jockey has marked themselves as attending.
+  let myAttending = false;
+  if (sessionClient && userId && userRole === "jockey") {
+    const { data: myAtt } = await sessionClient
+      .from("meeting_attendance")
+      .select("attending")
+      .eq("meeting_id", meeting.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    myAttending = myAtt?.attending ?? false;
+  }
 
   let racesFromDb: RaceRow[] = [];
   if (meeting.nztr_day_id) {
@@ -296,6 +309,9 @@ export default async function MeetingDetailPage({
         </div>
 
         <div className="space-y-4">
+          {userRole === "jockey" && !isPast ? (
+            <AttendanceToggle meetingId={meeting.id} initialAttending={myAttending} />
+          ) : null}
           <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Riding here · {jockeys.length}</h2>
           {jockeys.length > 0 ? (
             <div className="space-y-2">

@@ -12,3 +12,5 @@ work-dev-server*.log
 .codex-*.log
 graphify-out/
 .vercel
+scripts/.cache/
+HANDOFF.md

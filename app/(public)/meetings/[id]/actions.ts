@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 interface RequestRideArgs {
@@ -73,4 +74,47 @@ export async function requestRideFromRaceCard(
 
   if (error) return { success: false, error: error.message };
   return { success: true };
+}
+
+/**
+ * Jockey "I'm attending" toggle for a meeting.
+ * Upserts the jockey's row in meeting_attendance (unique on meeting_id + user_id).
+ * RLS restricts this to the jockey themselves (or their approved agent).
+ */
+export async function setMeetingAttendance(args: {
+  meetingId: string;
+  attending: boolean;
+}): Promise<{ success: boolean; attending?: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not logged in" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) return { success: false, error: "Profile not found" };
+  if (profile.role !== "jockey") {
+    return { success: false, error: "Only jockeys can mark attendance" };
+  }
+
+  const { error } = await supabase.from("meeting_attendance").upsert(
+    {
+      meeting_id: args.meetingId,
+      user_id: user.id,
+      attending: args.attending,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "meeting_id,user_id" }
+  );
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath(`/meetings/${args.meetingId}`);
+  return { success: true, attending: args.attending };
 }
