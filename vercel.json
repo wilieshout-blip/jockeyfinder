@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/trial-reminders",
       "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/match-stables",
+      "schedule": "30 19 * * *"
     }
   ]
 }

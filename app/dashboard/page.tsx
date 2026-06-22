@@ -124,9 +124,18 @@ export default async function DashboardPage() {
     }
   }
 
-  // Trainer: horse links (pending + confirmed)
+  // Trainer: horse links (pending + confirmed). On first visit, auto-load the
+  // trainer's stable from the horse registry (matched on nztr_trainer_name) so
+  // they only have to confirm or deny each horse rather than search them up.
   let trainerHorseLinks: any[] = [];
   if (profile.role === "trainer") {
+    const { count } = await supabase
+      .from("trainer_horse_links")
+      .select("id", { count: "exact", head: true })
+      .eq("trainer_id", user.id);
+    if (!count) {
+      await supabase.rpc("match_trainer_horses", { p_trainer_id: user.id });
+    }
     const { data } = await supabase
       .from("trainer_horse_links")
       .select("id, status, horses(id, name, sire, dam, nztr_trainer_name)")
@@ -136,9 +145,46 @@ export default async function DashboardPage() {
     trainerHorseLinks = data ?? [];
   }
 
-  // Owner: horse links (pending + confirmed)
+  // Trainer: upcoming runners from confirmed stable horses.
+  let trainerUpcomingRunners: any[] = [];
+  if (profile.role === "trainer") {
+    const confirmedNames = trainerHorseLinks
+      .filter((link) => link.status === "confirmed")
+      .map((link) => link.horses?.name)
+      .filter(Boolean) as string[];
+    if (confirmedNames.length > 0) {
+      const { data: runners } = await supabase
+        .from("race_entries")
+        .select(
+          "id, race_number, horse_number, horse_name, jockey_name, trainer_name, barrier, weight, meetings!inner(id, meeting_date, track, club), races(name, distance, race_class, start_time)"
+        )
+        .in("horse_name", confirmedNames)
+        .gte("meetings.meeting_date", nzToday())
+        .limit(20);
+
+      trainerUpcomingRunners = (runners ?? [])
+        .sort((a: any, b: any) => {
+          const aDate = a.meetings?.meeting_date ?? "";
+          const bDate = b.meetings?.meeting_date ?? "";
+          if (aDate !== bDate) return aDate.localeCompare(bDate);
+          return Number(a.race_number ?? 0) - Number(b.race_number ?? 0);
+        })
+        .slice(0, 6);
+    }
+  }
+
+  // Owner: horse links (pending + confirmed). On first visit, auto-load the
+  // owner's horses from the registry (matched on registered owner name) so they
+  // only have to confirm or deny each one.
   let ownerHorseLinks: any[] = [];
   if (profile.role === "owner") {
+    const { count } = await supabase
+      .from("owner_horse_links")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", user.id);
+    if (!count) {
+      await supabase.rpc("match_owner_horses", { p_owner_id: user.id });
+    }
     const { data } = await supabase
       .from("owner_horse_links")
       .select("id, status, horses(id, name, sire, dam, nztr_trainer_name)")
@@ -318,6 +364,67 @@ export default async function DashboardPage() {
               </EmptyState>
             )}
           </section>
+
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                Your runners
+              </h2>
+              <Link
+                href="/meetings"
+                className="text-sm font-medium text-turf-700 hover:underline"
+              >
+                Browse meetings
+              </Link>
+            </div>
+            {trainerUpcomingRunners.length > 0 ? (
+              <div className="grid gap-2">
+                {trainerUpcomingRunners.map((runner: any) => {
+                  const meeting = runner.meetings;
+                  const race = Array.isArray(runner.races) ? runner.races[0] : runner.races;
+                  return (
+                    <Link
+                      key={runner.id}
+                      href={meeting?.id ? `/meetings/${meeting.id}` : "/meetings"}
+                      className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card transition-all hover:border-turf-200 hover:shadow-lift"
+                    >
+                      {meeting?.meeting_date ? (
+                        <DateBlock date={meeting.meeting_date} />
+                      ) : null}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-display font-semibold text-ink">
+                            {runner.horse_name}
+                          </p>
+                          {runner.race_number ? (
+                            <ClothChip tone="ink">R{runner.race_number}</ClothChip>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 text-sm text-zinc-500">
+                          {meeting?.track || "Upcoming meeting"}
+                          {meeting?.meeting_date ? " · " + formatMeetingDate(meeting.meeting_date) : ""}
+                          {race?.distance ? " · " + race.distance + "m" : ""}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-400">
+                          {runner.jockey_name ? "Jockey: " + runner.jockey_name : "Jockey TBC"}
+                          {runner.barrier != null ? " · Barrier " + runner.barrier : ""}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700">
+                        View race day
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState title="No upcoming runners yet">
+                Confirm the horses in your stable above. When their race-card
+                entries sync, your runners appear here with meeting and jockey details.
+              </EmptyState>
+            )}
+          </section>
+
           <TrainerHorses initialLinks={trainerHorseLinks} role="trainer" />
         </>
       ) : null}

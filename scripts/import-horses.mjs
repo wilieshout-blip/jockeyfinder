@@ -319,7 +319,8 @@ function parseHorse(html, horseId) {
   const detM = text.match(
     /Horse Details\s+(\d+)YO\s+(.+?)\s+(Mare|Gelding|Colt|Filly|Horse|Rig|Stallion|Entire|Stal\.?)\s+Owner:/i
   );
-  const colour = detM ? detM[2].trim() : null;
+  // strip a leading marker like "(ret) " that LoveRacing shows for retired horses
+  const colour = detM ? detM[2].trim().replace(/^\([^)]*\)\s*/, "") : null;
   const sex = detM ? detM[3].trim() : null;
 
   // Owner / Breeder / Sire / Dam / Foaling — capture each label up to the next.
