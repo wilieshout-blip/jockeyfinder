@@ -53,6 +53,7 @@ const DRY = !!arg("dry", false);
 const DAYS = parseInt(arg("days", "21"), 10);
 const ONE_DAY = arg("day", null);
 const DELAY = parseInt(arg("delay", "500"), 10);
+const SOURCE = arg("source", "local"); // who ran it: local | github
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -209,23 +210,33 @@ async function main() {
     meetings = data ?? [];
   }
 
-  console.log(`sync-entries: ${meetings.length} meetings${DRY ? " (DRY)" : ""}`);
-  let totalEntries = 0, totalJockeys = 0;
+  console.log(`sync-entries: ${meetings.length} meetings${DRY ? " (DRY)" : ""} [source=${SOURCE}]`);
+  let totalEntries = 0, totalJockeys = 0, fails = 0;
   for (const mtg of meetings) {
     const r = await syncMeeting(mtg);
     if (r.ok) {
       totalEntries += r.entries || 0; totalJockeys += r.jockeys || 0;
       console.log(`  ${mtg.meeting_date} ${mtg.track} (${mtg.nztr_day_id}): ${r.entries || 0} entries, ${r.jockeys || 0} with jockey`);
     } else {
+      fails++;
       console.warn(`  ${mtg.meeting_date} ${mtg.track} (${mtg.nztr_day_id}): FAIL ${r.reason}`);
     }
     await sleep(DELAY);
   }
-  console.log(`done: ${totalEntries} entries, ${totalJockeys} with jockey`);
+  console.log(`done: ${totalEntries} entries, ${totalJockeys} with jockey, ${fails} failed`);
 
   if (!DRY) {
     const { error } = await supabase.rpc("refresh_stables");
     console.log(error ? `refresh_stables error: ${error.message}` : "refresh_stables: ok");
+    // Log the run so it can be monitored (and so we can confirm which environments reach LoveRacing).
+    await supabase.from("sync_runs").insert({
+      source: SOURCE,
+      meetings: meetings.length,
+      entries: totalEntries,
+      jockeys: totalJockeys,
+      ok: fails === 0,
+      note: fails > 0 ? `${fails} meetings failed` : null,
+    });
   }
 }
 

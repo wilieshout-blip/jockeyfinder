@@ -1,0 +1,33 @@
+name: sync-entries
+
+# Runs the race-entry (jockey/trainer) + stable sync every 15 minutes in the
+# cloud, so it works 24/7 without a PC being on. Requires two repo secrets:
+#   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# (Settings -> Secrets and variables -> Actions -> New repository secret)
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+  push:
+    paths:
+      - ".github/workflows/sync-entries.yml"
+
+concurrency:
+  group: sync-entries
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install @supabase/supabase-js@^2 --no-save
+      - run: node scripts/sync-entries.mjs --days=5 --source=github
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
