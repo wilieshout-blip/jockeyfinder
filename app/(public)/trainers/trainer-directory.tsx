@@ -105,6 +105,7 @@ export function TrainerDirectory({
 }: Props) {
       const [island, setIsland] = useState<string | null>(null);
         const [region, setRegion] = useState<string | null>(null);
+        const [query, setQuery] = useState("");
 
           function selectIsland(i: string) {
                 if (island === i) {
@@ -128,17 +129,25 @@ export function TrainerDirectory({
                 const isFiltered = !!island;
                   const activeRegions = island ? ISLAND_REGIONS[island] : [];
 
+                    const q = query.trim().toLowerCase();
+                    const nameMatch = (n: string | null) => !q || (n ?? "").toLowerCase().includes(q);
                     const filteredTrainers = trainers.filter((t) =>
-                        matchesRegion(t.base_region, island, region)
+                        matchesRegion(t.base_region, island, region) && nameMatch(t.full_name)
                     );
                       const filteredRegistry = registryPeople.filter((p) =>
-                          matchesRegion(p.location, island, region)
+                          matchesRegion(p.location, island, region) && nameMatch(p.full_name)
                             );
                             
                               return (
                                     <div>
                                           {/* Island / Region filter */}
                                                 <div className="mb-6 space-y-3">
+                                                        <input
+                                                          value={query}
+                                                          onChange={(e) => setQuery(e.target.value)}
+                                                          placeholder="Search by name…"
+                                                          className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-turf-500"
+                                                        />
                                                         <div className="flex flex-wrap items-center gap-2">
                                                                   {["North Island", "South Island"].map((i) => (
                                                                                 <button

@@ -235,6 +235,30 @@ export default async function DashboardPage() {
   const ownerConfirmedLinks = ownerHorseLinks.filter((link) => link.status === "confirmed");
   const ownerPendingLinks = ownerHorseLinks.filter((link) => link.status === "pending");
 
+  // Getting-started checklist for users still setting up. Hidden once complete.
+  const verified = profile.verification_status === "approved";
+  const trainerConfirmed = trainerHorseLinks.filter((l) => l.status === "confirmed").length;
+  const startSteps: { label: string; done: boolean; href: string }[] =
+    profile.role === "jockey"
+      ? [
+          { label: "Set your current riding weight", done: profile.riding_weight != null, href: "/dashboard" },
+          { label: "Mark the meetings you're attending", done: attendingMeetings.length > 0, href: "/dashboard/calendar" },
+          { label: "Get verified to appear publicly", done: verified, href: "/dashboard/profile" },
+        ]
+      : profile.role === "trainer"
+      ? [
+          { label: "Confirm the horses in your stable", done: trainerConfirmed > 0, href: "/dashboard" },
+          { label: "Send your first ride request", done: (requests?.length ?? 0) > 0, href: "/dashboard/requests/new" },
+          { label: "Get verified to appear publicly", done: verified, href: "/dashboard/profile" },
+        ]
+      : profile.role === "owner"
+      ? [
+          { label: "Confirm your horses", done: ownerConfirmedLinks.length > 0, href: "/dashboard" },
+          { label: "Get verified", done: verified, href: "/dashboard/profile" },
+        ]
+      : [];
+  const showGettingStarted = startSteps.some((s) => !s.done);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -261,6 +285,38 @@ export default async function DashboardPage() {
       ) : null}
 
       <VerificationBanner profile={profile} />
+
+      {showGettingStarted ? (
+        <section className="rounded-2xl border border-turf-200 bg-turf-50/50 p-5">
+          <h2 className="font-display text-lg font-semibold text-ink">Getting started</h2>
+          <p className="mt-0.5 text-sm text-zinc-600">
+            A few quick steps to get the most out of JockeyFinder.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {startSteps.map((s) => (
+              <li key={s.label}>
+                <Link
+                  href={s.href}
+                  className="flex items-center gap-3 rounded-xl border border-line bg-white px-3 py-2.5 transition-colors hover:border-turf-300"
+                >
+                  <span
+                    className={cn(
+                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                      s.done ? "bg-turf-600 text-white" : "border border-zinc-300 text-transparent"
+                    )}
+                  >
+                    ✓
+                  </span>
+                  <span className={cn("text-sm", s.done ? "text-zinc-400 line-through" : "font-medium text-ink")}>
+                    {s.label}
+                  </span>
+                  {!s.done ? <span className="ml-auto text-xs font-medium text-turf-700">Do it →</span> : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {profile.role === "jockey" ? (
         <>

@@ -54,6 +54,7 @@ interface Props {
 export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Props) {
       const [island, setIsland] = useState<string | null>(null);
         const [region, setRegion] = useState<string | null>(null);
+        const [query, setQuery] = useState("");
 
           function selectIsland(i: string) {
                 if (island === i) { setIsland(null); setRegion(null); }
@@ -64,12 +65,20 @@ export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Prop
 
                 const isFiltered = !!island;
                   const activeRegions = island ? ISLAND_REGIONS[island] : [];
-                    const filteredJockeys = jockeys.filter((j) => matchesRegion(j.base_region, island, region));
-                      const filteredRegistry = registryPeople.filter((p) => matchesRegion(p.location, island, region));
+                    const q = query.trim().toLowerCase();
+                    const nameMatch = (n: string | null) => !q || (n ?? "").toLowerCase().includes(q);
+                    const filteredJockeys = jockeys.filter((j) => matchesRegion(j.base_region, island, region) && nameMatch(j.full_name));
+                      const filteredRegistry = registryPeople.filter((p) => matchesRegion(p.location, island, region) && nameMatch(p.full_name));
 
                         return (
                                 <div>
                                       <div className="mb-6 space-y-3">
+                                              <input
+                                                value={query}
+                                                onChange={(e) => setQuery(e.target.value)}
+                                                placeholder="Search by name…"
+                                                className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-turf-500"
+                                              />
                                               <div className="flex flex-wrap items-center gap-2">
                                                         {["North Island", "South Island"].map((i) => (
                                                                         <button key={i} type="button" onClick={() => selectIsland(i)}

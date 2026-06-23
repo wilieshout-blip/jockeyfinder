@@ -40,19 +40,29 @@ async function sendEmail(to: string, subject: string, html: string) {
 
 // ── Layout & helpers ─────────────────────────────────────────────────────────
 
-function emailLayout(body: string) {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JockeyFinder</title></head><body style="margin:0;padding:0;background:#f4f6f5;font-family:system-ui,-apple-system,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px">
+function emailLayout(body: string, preheader = "") {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JockeyFinder</title></head><body style="margin:0;padding:0;background:#0b3d2e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif">
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${preheader}</div>` : ""}
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#0b3d2e;padding:32px 16px">
   <tr><td align="center">
-    <table width="100%" style="max-width:540px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-      <tr><td style="background:#16a34a;padding:24px 32px">
-        <span style="font-size:20px;font-weight:700;color:#fff;letter-spacing:-.5px">🏇 JockeyFinder</span>
+    <table width="100%" role="presentation" style="max-width:560px">
+      <tr><td style="padding:8px 4px 18px">
+        <span style="font-size:22px;font-weight:800;letter-spacing:-.5px;color:#ffffff">JOCKEY</span><span style="font-size:22px;font-weight:800;letter-spacing:-.5px;color:#34d399">FINDER</span>
       </td></tr>
-      <tr><td style="padding:32px">${body}</td></tr>
-      <tr><td style="padding:16px 32px 28px;border-top:1px solid #e5e7eb">
-        <p style="margin:0;font-size:12px;color:#6b7280">
-          You received this because you are a JockeyFinder member.&nbsp;
-          <a href="${SITE_URL}/dashboard" style="color:#16a34a">Go to dashboard →</a>
+      <tr><td style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.18)">
+        <table width="100%" role="presentation">
+          <tr><td style="height:4px;background:#16a34a"></td></tr>
+          <tr><td style="padding:32px 36px">${body}</td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding:20px 8px 0">
+        <p style="margin:0 0 4px;font-size:12px;color:#a7c3b6">
+          <a href="${SITE_URL}" style="color:#a7c3b6;text-decoration:none">jockeyfinder.com</a>
+          &nbsp;·&nbsp; Plan rides. Book jockeys.
+        </p>
+        <p style="margin:0;font-size:11px;color:#6f9384">
+          You're receiving this because you have a JockeyFinder account.
+          Questions? <a href="mailto:Wilieshout@gmail.com" style="color:#6f9384">contact us</a>.
         </p>
       </td></tr>
     </table>
