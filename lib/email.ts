@@ -5,7 +5,12 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://jockeyfinder.com";
-const FROM = "JockeyFinder <noreply@jockeyfinder.com>";
+// Default to Resend's shared sender so admin emails work before the domain is
+// verified (it can only deliver to the Resend account owner's address, which is
+// fine for admin notifications). Once jockeyfinder.com is verified in Resend,
+// set EMAIL_FROM="JockeyFinder <noreply@jockeyfinder.com>" in Vercel to send to
+// everyone — no code change needed.
+const FROM = process.env.EMAIL_FROM ?? "JockeyFinder <onboarding@resend.dev>";
 
 async function sendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
