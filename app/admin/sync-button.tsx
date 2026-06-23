@@ -5,7 +5,24 @@ import { Button } from "@/components/ui/button";
 import { syncNow } from "./actions";
 import type { ManualSyncResult } from "./actions";
 
-export function SyncButton() {
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const m = Math.round(diffMs / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hour${h !== 1 ? "s" : ""} ago`;
+  const d = Math.round(h / 24);
+  return `${d} day${d !== 1 ? "s" : ""} ago`;
+}
+
+export function SyncButton({
+  lastSyncedAt,
+  source,
+}: {
+  lastSyncedAt?: string | null;
+  source?: string | null;
+}) {
   const [result, setResult] = useState<ManualSyncResult | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -55,6 +72,12 @@ export function SyncButton() {
       <Button onClick={run} disabled={pending} variant="accent" size="sm">
         {pending ? "Syncing..." : "Sync meetings now"}
       </Button>
+      {lastSyncedAt ? (
+        <p className="text-xs text-zinc-500">
+          Last synced {timeAgo(lastSyncedAt)}
+          {source === "github" ? " (auto · cloud)" : source === "local" ? " (auto)" : ""}
+        </p>
+      ) : null}
       {result ? (
         result.ok ? (
           <div className="text-sm text-turf-700">

@@ -70,6 +70,16 @@ export default async function AdminPage({
       ),
     ]);
 
+  // Most recent data sync (manual or the 15-minute auto-sync), for the badge by the button.
+  const [{ data: lastRun }, { data: lastEntry }] = await Promise.all([
+    admin.from("sync_runs").select("ran_at, source").order("ran_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("race_entries").select("synced_at").order("synced_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  const syncTimes = [lastRun?.ran_at, lastEntry?.synced_at].filter(Boolean) as string[];
+  const lastSyncedAt = syncTimes.sort().at(-1) ?? null;
+  const lastSyncedSource =
+    lastRun?.ran_at && lastSyncedAt === lastRun.ran_at ? (lastRun.source as string) : null;
+
   const { data: pendingJockeys } = await admin
     .from("profiles")
     .select(
@@ -316,7 +326,7 @@ export default async function AdminPage({
           <h2 className="font-display text-lg font-semibold text-ink">
             Race calendar
           </h2>
-          <SyncButton />
+          <SyncButton lastSyncedAt={lastSyncedAt} source={lastSyncedSource} />
         </div>
         <p className="text-sm text-zinc-500">
           Pulls the next three months of NZ meetings from LoveRacing. The Vercel
