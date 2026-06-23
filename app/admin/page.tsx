@@ -329,8 +329,8 @@ export default async function AdminPage({
           <SyncButton lastSyncedAt={lastSyncedAt} source={lastSyncedSource} />
         </div>
         <p className="text-sm text-zinc-500">
-          Pulls the next three months of NZ meetings from LoveRacing. The Vercel
-          cron does this daily, this button is for manual refreshes.
+          Pulls upcoming NZ meetings and race-card entries. Race fields
+          auto-sync every 15 minutes; this button forces an immediate refresh.
         </p>
       </section>
 
