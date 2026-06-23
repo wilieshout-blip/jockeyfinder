@@ -25,7 +25,7 @@ async function sendEmail(to: string, subject: string, html: string) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
-      body: JSON.stringify({ from: FROM, to: [to], subject, html }),
+      body: JSON.stringify({ from: FROM, to: [to.trim().toLowerCase()], subject, html }),
     });
     if (!res.ok) {
       console.error("[email] Resend error:", res.status, await res.text());
