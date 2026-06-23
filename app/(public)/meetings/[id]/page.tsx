@@ -121,6 +121,66 @@ export default async function MeetingDetailPage({
     myAttending = myAtt?.attending ?? false;
   }
 
+  // "Riding here": everyone declared to ride at this meeting per the race card,
+  // including jockeys who don't have a JockeyFinder account. App jockeys are
+  // matched by name so their chip links to their profile.
+  type RidingHere = {
+    name: string;
+    rides: number;
+    profile: PublicAttendance | null;
+  };
+  let ridingHere: RidingHere[] = [];
+  if (meeting.nztr_day_id) {
+    const { data: re } = await supabase
+      .from("race_entries")
+      .select("jockey_name")
+      .eq("nztr_day_id", meeting.nztr_day_id)
+      .not("jockey_name", "is", null);
+
+    const counts = new Map<string, number>();
+    for (const r of re ?? []) {
+      const n = (r.jockey_name ?? "").trim();
+      if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
+    }
+
+    const names = [...counts.keys()];
+    const profileByName = new Map<string, PublicAttendance>();
+    if (names.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select(
+          "id, full_name, first_name, last_name, profile_photo_url, riding_weight, apprentice, apprentice_claim"
+        )
+        .eq("role", "jockey")
+        .eq("verified", true)
+        .in("full_name", names);
+      for (const p of profs ?? []) {
+        if (p.full_name) {
+          profileByName.set(p.full_name.toLowerCase(), {
+            meeting_id: meeting.id,
+            jockey_id: p.id,
+            first_name: p.first_name,
+            last_name: p.last_name,
+            full_name: p.full_name,
+            profile_photo_url: p.profile_photo_url,
+            riding_weight: p.riding_weight,
+            apprentice_claim: p.apprentice_claim,
+            apprentice: p.apprentice ?? false,
+            availability: null,
+          });
+        }
+      }
+    }
+
+    ridingHere = names
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({
+        name,
+        rides: counts.get(name) ?? 0,
+        profile: profileByName.get(name.toLowerCase()) ?? null,
+      }));
+  }
+
   let racesFromDb: RaceRow[] = [];
   if (meeting.nztr_day_id) {
     const { data } = await supabase
@@ -312,14 +372,38 @@ export default async function MeetingDetailPage({
           {userRole === "jockey" && !isPast ? (
             <AttendanceToggle meetingId={meeting.id} initialAttending={myAttending} />
           ) : null}
-          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Riding here · {jockeys.length}</h2>
-          {jockeys.length > 0 ? (
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Riding here · {ridingHere.length}</h2>
+          {ridingHere.length > 0 ? (
             <div className="space-y-2">
-              {jockeys.map((j) => <JockeyChip key={j.jockey_id} jockey={j} />)}
+              {ridingHere.map((r) =>
+                r.profile ? (
+                  <JockeyChip key={r.name} jockey={r.profile} />
+                ) : (
+                  <div
+                    key={r.name}
+                    className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-mist text-xs font-semibold text-zinc-500">
+                      {r.name
+                        .split(/\s+/)
+                        .map((w) => w[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-ink">{r.name}</p>
+                      <p className="text-xs text-zinc-400">
+                        {r.rides} ride{r.rides !== 1 ? "s" : ""} · not on JockeyFinder
+                      </p>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           ) : (
             <div className="border border-dashed border-line bg-white p-5 text-center">
-              <p className="text-sm text-zinc-500">No verified jockeys have marked attendance yet.</p>
+              <p className="text-sm text-zinc-500">No riders declared yet for this meeting.</p>
               <Link href="/jockeys" className="mt-2 block text-xs font-medium text-turf-700 hover:underline">Browse jockeys</Link>
             </div>
           )}
