@@ -162,6 +162,46 @@ export async function emailRideAssigned(opts: {
   );
 }
 
+/** Notify the site admin when a new user signs up. */
+export async function emailNewSignup(opts: {
+  name?: string | null;
+  role?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  test?: boolean;
+}) {
+  const to = process.env.ADMIN_EMAIL;
+  if (!to) {
+    console.warn("[email] ADMIN_EMAIL not configured; skipping new-signup notice");
+    return false;
+  }
+  const name = opts.name || "Unnamed user";
+  const role = opts.role || "unknown";
+  const rows = [
+    ["Name", name],
+    ["Role", role],
+    ["Email", opts.email || "—"],
+    ["Phone", opts.phone || "—"],
+  ]
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:90px">${k}</td><td style="padding:6px 0;color:#111827;font-size:14px;font-weight:600">${v}</td></tr>`
+    )
+    .join("");
+  return sendEmail(
+    to,
+    `${opts.test ? "[TEST] " : ""}New ${role} signup: ${name}`,
+    emailLayout(`
+      <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827">New signup${opts.test ? " (test)" : ""} 🎉</h2>
+      <p style="margin:0 0 16px;font-size:15px;color:#374151">
+        A new ${role} just created an account on JockeyFinder.${opts.test ? " <em>This is a test email.</em>" : ""}
+      </p>
+      <table cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;margin:8px 0">${rows}</table>
+      ${cta("Review in admin →", `${SITE_URL}/admin/users`)}
+    `)
+  );
+}
+
 export async function emailTrialReminder({
   to, firstName, role, daysLeft, trialEndDate,
 }: {

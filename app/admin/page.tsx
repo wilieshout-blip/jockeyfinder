@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -254,6 +255,19 @@ export default async function AdminPage({
           <span className="font-semibold">Test sign-in failed.</span> {testError}
         </div>
       ) : null}
+
+      {/* All users management */}
+      <Link
+        href="/admin/users"
+        className="flex items-center justify-between rounded-2xl border border-ink bg-ink p-5 text-white transition-colors hover:bg-zinc-800"
+      >
+        <div>
+          <p className="font-display text-lg font-semibold">Manage all users →</p>
+          <p className="mt-0.5 text-sm text-zinc-300">
+            Full list of jockeys, trainers, owners &amp; agents — approve, change role, delete, send test email.
+          </p>
+        </div>
+      </Link>
 
       {/* Test accounts panel */}
       <section>

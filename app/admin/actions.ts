@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/utils";
+import { emailNewSignup } from "@/lib/email";
 import { syncMeetings } from "@/lib/loveracing";
 import {
   syncUpcomingRaceEntries,
@@ -57,6 +58,67 @@ export async function rejectUser(formData: FormData) {
       .eq("id", id);
   }
   revalidatePath("/admin");
+}
+
+/** Set a user's verification state (approved / rejected / pending). */
+export async function setUserVerification(formData: FormData) {
+  await assertAdmin();
+  const id = String(formData.get("user_id") || "");
+  const status = String(formData.get("status") || "");
+  if (id && ["approved", "rejected", "pending"].includes(status)) {
+    const admin = createAdminClient();
+    await admin
+      .from("profiles")
+      .update({
+        verification_status: status,
+        verified: status === "approved",
+        status,
+      })
+      .eq("id", id);
+  }
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
+}
+
+/** Change a user's role. */
+export async function setUserRole(formData: FormData) {
+  await assertAdmin();
+  const id = String(formData.get("user_id") || "");
+  const role = String(formData.get("role") || "");
+  if (id && ["jockey", "trainer", "owner", "agent", "admin"].includes(role)) {
+    const admin = createAdminClient();
+    await admin.from("profiles").update({ role }).eq("id", id);
+  }
+  revalidatePath("/admin/users");
+}
+
+/** Delete a user (auth user + profile). Cannot delete yourself. */
+export async function deleteUser(formData: FormData) {
+  const me = await assertAdmin();
+  const id = String(formData.get("user_id") || "");
+  if (id && id !== me.id) {
+    const admin = createAdminClient();
+    try {
+      await admin.auth.admin.deleteUser(id);
+    } catch {
+      // fall through to profile delete (e.g. placeholder with no auth user)
+    }
+    await admin.from("profiles").delete().eq("id", id);
+  }
+  revalidatePath("/admin/users");
+}
+
+/** Send a sample "new signup" email to the admin so they can preview the format. */
+export async function sendTestSignupEmail(): Promise<{ ok: boolean }> {
+  const me = await assertAdmin();
+  const ok = await emailNewSignup({
+    name: "Jane Rider (test)",
+    role: "jockey",
+    email: me.email ?? "test@example.com",
+    phone: "+64 21 000 0000",
+    test: true,
+  });
+  return { ok };
 }
 
 export async function markAgentPaid(formData: FormData) {
