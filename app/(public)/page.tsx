@@ -163,16 +163,19 @@ export default function HomePage() {
                 New Zealand racing operations
               </p>
             </div>
-            <h1 className="font-display text-[clamp(3.5rem,8.5vw,7.6rem)] font-semibold leading-[0.82] tracking-[-0.075em] text-white">
-              Race day
+            <h1
+              aria-label="Race day bookings, simplified."
+              className="font-display text-[clamp(3.5rem,8.5vw,7.6rem)] font-semibold leading-[0.82] tracking-[-0.075em] text-white"
+            >
+              <span className="block">Race day</span>
               <span className="block text-turf-300">bookings,</span>
               <span className="block">simplified.</span>
             </h1>
             <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-300 sm:text-xl">
-              JockeyFinder helps trainers find available jockeys, send ride
-              requests, and manage race-day availability in one clean platform.
+              JockeyFinder helps trainers find available jockeys, send structured
+              ride requests, and keep race-day bookings in one clear record.
             </p>
-            <div className="mt-9 flex flex-wrap gap-3">
+            <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
                 href="/signup"
                 className={buttonClasses(
@@ -181,19 +184,32 @@ export default function HomePage() {
                   "rounded-none bg-gold-400 text-ink hover:bg-gold-300 active:bg-gold-500"
                 )}
               >
-                Start using JockeyFinder
+                Start free
               </Link>
               <Link
-                href="/login"
+                href="/meetings"
                 className={buttonClasses("inverse", "lg", "rounded-none border-white/30")}
               >
-                Log in
+                Browse meetings
+              </Link>
+              <Link
+                href="/jockeys"
+                className="text-sm font-medium text-zinc-300 underline-offset-4 hover:text-white hover:underline"
+              >
+                View jockey directory
               </Link>
             </div>
-            <div className="mt-10 grid max-w-xl grid-cols-3 border-y border-white/10 py-4 text-xs text-zinc-500">
-              <span>Verified accounts</span>
-              <span className="border-x border-white/10 px-4">NZ race data</span>
-              <span className="pl-4">Mobile first</span>
+            <div className="mt-10 flex max-w-xl flex-wrap gap-2 text-xs text-zinc-400">
+              {[
+                "New Zealand racing",
+                "Verified accounts",
+                "Mobile first",
+                "Free until 1 Oct 2026",
+              ].map((chip) => (
+                <span key={chip} className="rounded-full border border-white/15 px-3 py-1">
+                  {chip}
+                </span>
+              ))}
             </div>
           </div>
           <div className="relative z-10 hidden lg:block">

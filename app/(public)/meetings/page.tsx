@@ -104,6 +104,11 @@ export default async function MeetingsPage({
         description="Upcoming New Zealand meetings with attending jockeys, weights, and claims as declared."
       />
 
+      <p className="-mt-3 mb-1 text-sm text-zinc-500">
+        {filtered.length} upcoming {filtered.length === 1 ? "meeting" : "meetings"} · race and trial
+        days · attendance updates appear here as verified jockeys mark the meetings they&apos;re riding.
+      </p>
+
       <Suspense
         fallback={
           <div className="space-y-4">
