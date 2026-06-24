@@ -16,7 +16,7 @@ import {
   cn,
   REQUEST_STATUS_STYLES,
 } from "@/lib/utils";
-import { createPlaceholderJockey, linkJockeyByEmail, unlinkJockey } from "./actions";
+import { linkJockeyByEmail, unlinkJockey } from "./actions";
 
 export const dynamic = "force-dynamic";
 
