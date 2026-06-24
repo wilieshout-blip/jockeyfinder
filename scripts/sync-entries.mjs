@@ -139,7 +139,9 @@ export function parseEntries(html) {
       out.push({
         race_number: raceNum,
         horse_number: parseInt(m[1], 10),
-        horse_name: clean(m[4]),
+        // strip non-country trailing markers like " (B3)" so names stay stable
+        // across syncs (keep country codes such as " (AUS)" / " (NZ)").
+        horse_name: clean(m[4]).replace(/\s*\((?![A-Z]{2,3}\))[^)]*\)\s*$/, "").trim(),
         nztr_horse_id: id,
         form: clean(m[2]) || null,
         age_sex: ageSex,

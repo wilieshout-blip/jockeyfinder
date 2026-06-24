@@ -7,8 +7,16 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty";
 import { Avatar } from "@/components/ui/avatar";
-import { formatClaim, formatWeight } from "@/lib/utils";
-import { linkJockeyByEmail, unlinkJockey } from "./actions";
+import { DateBlock } from "@/components/racing";
+import {
+  formatClaim,
+  formatWeight,
+  formatMeetingDate,
+  nzToday,
+  cn,
+  REQUEST_STATUS_STYLES,
+} from "@/lib/utils";
+import { createPlaceholderJockey, linkJockeyByEmail, unlinkJockey } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +51,7 @@ export default async function AgentPage({
     apprentice_claim: number | null;
     base_region: string | null;
     verified: boolean | null;
+    is_placeholder: boolean | null;
   }[] = [];
 
   if (approved) {
@@ -56,7 +65,7 @@ export default async function AgentPage({
       const { data } = await supabase
         .from("profiles")
         .select(
-          "id, full_name, profile_photo_url, riding_weight, apprentice, apprentice_claim, base_region, verified"
+          "id, full_name, profile_photo_url, riding_weight, apprentice, apprentice_claim, base_region, verified, is_placeholder"
         )
         .in("id", ids)
         .order("full_name");
@@ -64,11 +73,59 @@ export default async function AgentPage({
     }
   }
 
+  // Stable-wide ride + attendance overview.
+  const today = nzToday();
+  const managedIds = managed.map((m) => m.id);
+  const nameById = new Map(managed.map((m) => [m.id, m.full_name]));
+  let upcomingRides: {
+    id: string;
+    jockey_name: string | null;
+    horse_name: string | null;
+    race_number: number | null;
+    status: string;
+    meeting_id: string | null;
+    meeting_date: string | null;
+    track: string | null;
+  }[] = [];
+  let attendingMeetings = 0;
+  if (approved && managedIds.length > 0) {
+    const { data: reqs } = await supabase
+      .from("ride_requests")
+      .select(
+        "id, jockey_id, horse_name, race_number, status, meeting_id, meetings(meeting_date, track)"
+      )
+      .in("jockey_id", managedIds)
+      .order("created_at", { ascending: false });
+    upcomingRides = (reqs ?? [])
+      .map((r: any) => ({
+        id: r.id,
+        jockey_name: nameById.get(r.jockey_id) ?? "Jockey",
+        horse_name: r.horse_name,
+        race_number: r.race_number,
+        status: r.status as string,
+        meeting_id: r.meeting_id,
+        meeting_date: r.meetings?.meeting_date ?? null,
+        track: r.meetings?.track ?? null,
+      }))
+      .filter((r) => (r.meeting_date ?? "") >= today && r.status !== "cancelled")
+      .sort((a, b) => (a.meeting_date ?? "").localeCompare(b.meeting_date ?? ""))
+      .slice(0, 12);
+
+    const { data: att } = await supabase
+      .from("meeting_attendance")
+      .select("meeting_id")
+      .in("user_id", managedIds)
+      .eq("attending", true);
+    attendingMeetings = new Set((att ?? []).map((a) => a.meeting_id)).size;
+  }
+
   const errorMessages: Record<string, string> = {
     not_approved: "Your agent account needs admin approval before you can manage jockeys.",
     missing_email: "Enter the jockey's email address.",
     not_found: "No jockey account found with that email. Ask them to sign up first.",
     link_failed: "Could not link that jockey. Please try again.",
+    missing_name: "Enter the rider's first and last name.",
+    create_failed: "Could not create the placeholder profile. Please try again.",
   };
 
   return (
@@ -107,6 +164,61 @@ export default async function AgentPage({
         </Card>
       ) : (
         <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {([
+              ["Jockeys", managed.length],
+              ["Upcoming rides", upcomingRides.length],
+              ["Meetings attending", attendingMeetings],
+            ] as [string, number][]).map(([label, value]) => (
+              <Card key={label}>
+                <CardBody>
+                  <p className="font-display text-2xl font-semibold text-ink">{value}</p>
+                  <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-zinc-400">
+                    {label}
+                  </p>
+                </CardBody>
+              </Card>
+            ))}
+          </div>
+
+          {upcomingRides.length > 0 ? (
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                Upcoming rides across your stable
+              </h3>
+              <div className="grid gap-2">
+                {upcomingRides.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={r.meeting_id ? `/meetings/${r.meeting_id}` : "/meetings"}
+                    className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card transition-all hover:border-turf-200 hover:shadow-lift"
+                  >
+                    {r.meeting_date ? <DateBlock date={r.meeting_date} /> : null}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display font-semibold text-ink">
+                        {r.horse_name || "Ride"}
+                        {r.race_number ? ` · R${r.race_number}` : ""}
+                      </p>
+                      <p className="mt-0.5 text-sm text-zinc-500">
+                        {r.jockey_name}
+                        {r.track ? ` · ${r.track}` : ""}
+                        {r.meeting_date ? ` · ${formatMeetingDate(r.meeting_date)}` : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
+                        REQUEST_STATUS_STYLES[r.status] ?? "border-line text-zinc-500"
+                      )}
+                    >
+                      {r.status}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           {managed.length === 0 ? (
             <EmptyState title="No jockeys linked yet">
               Add a jockey below using the email they signed up with.
@@ -122,8 +234,11 @@ export default async function AgentPage({
                       size="md"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="font-display font-semibold text-ink">
+                      <p className="flex flex-wrap items-center gap-2 font-display font-semibold text-ink">
                         {j.full_name || "Unnamed jockey"}
+                        {j.is_placeholder ? (
+                          <Badge tone="amber">Placeholder</Badge>
+                        ) : null}
                       </p>
                       <p className="text-sm text-zinc-500">
                         {formatWeight(j.riding_weight)}
