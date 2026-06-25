@@ -17,6 +17,7 @@ export function SiteFooter() {
             <div>
               <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-300">Product</p>
               <ul className="space-y-2.5 text-zinc-400">
+                <li><Link className="hover:text-white" href="/features">Features</Link></li>
                 <li><Link className="hover:text-white" href="/meetings">Race meetings</Link></li>
                 <li><Link className="hover:text-white" href="/jockeys">Jockey directory</Link></li>
                 <li><Link className="hover:text-white" href="/trainers">Trainer directory</Link></li>

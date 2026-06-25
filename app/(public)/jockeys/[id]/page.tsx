@@ -23,6 +23,7 @@ interface PublicJockey {
   apprentice_claim: number | null; riding_weight: number | null;
   apprentice_riding_weight: number | null; base_region: string | null;
   preferred_tracks: string | null; availability_notes: string | null;
+  phone: string | null; show_phone: boolean | null; show_agent_phone: boolean | null;
 }
 
 const LICENCE_LABELS: Record<string, string> = {
@@ -88,6 +89,25 @@ export default async function JockeyProfilePage({
         race_date: r.race_date, win_dividend: r.win_dividend, nztr_day_id: r.nztr_day_id,
       })),
     };
+  }
+
+  // Agent (if this jockey is managed by one), shown on the profile.
+  let agent: { id: string; full_name: string | null; phone: string | null } | null = null;
+  {
+    const { data: link } = await supabase
+      .from("agent_jockeys")
+      .select("agent_id")
+      .eq("jockey_id", jockey.id)
+      .limit(1)
+      .maybeSingle();
+    if (link?.agent_id) {
+      const { data: a } = await supabase
+        .from("public_agents")
+        .select("id, full_name, phone")
+        .eq("id", link.agent_id)
+        .maybeSingle();
+      agent = a ?? null;
+    }
   }
 
   let user: { id: string } | null = null;
@@ -184,6 +204,49 @@ export default async function JockeyProfilePage({
           </CardBody>
         </Card>
       </div>
+
+      {(jockey.show_phone && jockey.phone) || agent ? (
+        <div className="mt-4">
+          <Card>
+            <CardBody>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Contact</h2>
+              <dl className="space-y-3 text-sm">
+                {jockey.show_phone && jockey.phone ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <dt className="text-zinc-500">Phone</dt>
+                    <dd className="font-medium text-ink">
+                      <a href={`tel:${jockey.phone}`} className="hover:underline">{jockey.phone}</a>
+                    </dd>
+                  </div>
+                ) : null}
+                {agent ? (
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="pt-0.5 text-zinc-500">Agent</dt>
+                    <dd className="text-right">
+                      <Link href={`/agents/${agent.id}`} className="font-medium text-turf-700 hover:underline">
+                        {agent.full_name ?? "View agent"}
+                      </Link>
+                      {jockey.show_agent_phone && agent.phone ? (
+                        <p className="mt-0.5">
+                          <a href={`tel:${agent.phone}`} className="text-ink hover:underline">{agent.phone}</a>
+                        </p>
+                      ) : null}
+                      {user && user.id !== agent.id ? (
+                        <form action={startDirectMessage} className="mt-1.5">
+                          <input type="hidden" name="user_id" value={agent.id} />
+                          <button type="submit" className="text-xs font-medium text-turf-700 hover:underline">
+                            Message agent →
+                          </button>
+                        </form>
+                      ) : null}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </CardBody>
+          </Card>
+        </div>
+      ) : null}
 
       <section className="mt-8">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">

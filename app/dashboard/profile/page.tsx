@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 import { NotificationPreferences } from "@/components/notification-preferences";
+import { ProfilePrivacy } from "@/components/profile-privacy";
 import { Badge, VerifiedBadge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/premium";
 import type { Profile } from "@/lib/types";
@@ -39,6 +40,14 @@ export default async function ProfilePage() {
       />
 
       <ProfileForm profile={profile} email={user.email ?? ""} />
+
+      {profile.role === "jockey" ? (
+        <ProfilePrivacy
+          userId={profile.id}
+          initialShowPhone={profile.show_phone ?? false}
+          initialShowAgentPhone={profile.show_agent_phone ?? true}
+        />
+      ) : null}
 
       <NotificationPreferences
         userId={profile.id}

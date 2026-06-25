@@ -94,6 +94,21 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         photoUrl={profile?.profile_photo_url ?? null}
         isAdmin={isAdmin}
       />
+      {profile?.is_test ? (
+        <div className="border-b border-amber-200 bg-amber-50">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm text-amber-900 sm:px-6 lg:px-8">
+            <span>
+              <span className="font-semibold">Test account.</span> You&apos;re signed in as{" "}
+              {profile.full_name || user.email}. Log out to return to your own account.
+            </span>
+            <form action="/auth/signout" method="post">
+              <button className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+                Leave test account
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
       {managedJockeys.length > 0 && (
         <AgentBar jockeys={managedJockeys} />
       )}

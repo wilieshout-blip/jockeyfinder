@@ -32,6 +32,8 @@ export interface Profile {
   suspended?: boolean | null;
   email_notify_messages?: boolean | null;
   email_notify_marketing?: boolean | null;
+  show_phone?: boolean | null;
+  show_agent_phone?: boolean | null;
   updated_at: string;
 }
 
