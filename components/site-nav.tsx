@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { buttonClasses } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -17,6 +19,18 @@ export function SiteNav() {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
+
+  // Session-aware: logged-in users see Dashboard + Log out (not Log in/Sign up),
+  // so visiting a public page (e.g. via the logo) no longer looks like a logout.
+  const [loggedIn, setLoggedIn] = useState(false);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
+      setLoggedIn(!!session?.user)
+    );
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/95 text-white backdrop-blur-xl">
@@ -42,31 +56,56 @@ export function SiteNav() {
         </nav>
 
         <div className="hidden items-center gap-2.5 md:flex">
-          <Link
-            href="/login"
-            aria-current={pathname === "/login" ? "page" : undefined}
-            className={buttonClasses(
-              "inverse",
-              "sm",
-              cn(
-                "rounded-none",
-                pathname === "/login" ? "border-gold-400" : "border-transparent"
-              )
-            )}
-          >
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            aria-current={pathname === "/signup" ? "page" : undefined}
-            className={buttonClasses(
-              "accent",
-              "sm",
-              "rounded-none bg-gold-400 text-ink hover:bg-gold-300"
-            )}
-          >
-            Sign up
-          </Link>
+          {loggedIn ? (
+            <>
+              <Link
+                href="/dashboard"
+                className={buttonClasses("inverse", "sm", "rounded-none border-transparent")}
+              >
+                Dashboard
+              </Link>
+              <form action="/auth/signout" method="post">
+                <button
+                  type="submit"
+                  className={buttonClasses(
+                    "accent",
+                    "sm",
+                    "rounded-none bg-gold-400 text-ink hover:bg-gold-300"
+                  )}
+                >
+                  Log out
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                aria-current={pathname === "/login" ? "page" : undefined}
+                className={buttonClasses(
+                  "inverse",
+                  "sm",
+                  cn(
+                    "rounded-none",
+                    pathname === "/login" ? "border-gold-400" : "border-transparent"
+                  )
+                )}
+              >
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                aria-current={pathname === "/signup" ? "page" : undefined}
+                className={buttonClasses(
+                  "accent",
+                  "sm",
+                  "rounded-none bg-gold-400 text-ink hover:bg-gold-300"
+                )}
+              >
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
 
         <details className="group relative md:hidden">
@@ -110,20 +149,45 @@ export function SiteNav() {
               </Link>
             ))}
             <div className="mt-3 grid grid-cols-2 gap-2.5">
-              <Link
-                href="/login"
-                aria-current={pathname === "/login" ? "page" : undefined}
-                className={buttonClasses("inverse", "md", "rounded-none")}
-              >
-                Log in
-              </Link>
-              <Link
-                href="/signup"
-                aria-current={pathname === "/signup" ? "page" : undefined}
-                className={buttonClasses("accent", "md", "rounded-none bg-gold-400 text-ink")}
-              >
-                Sign up
-              </Link>
+              {loggedIn ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    className={buttonClasses("inverse", "md", "rounded-none")}
+                  >
+                    Dashboard
+                  </Link>
+                  <form action="/auth/signout" method="post">
+                    <button
+                      type="submit"
+                      className={buttonClasses(
+                        "accent",
+                        "md",
+                        "w-full rounded-none bg-gold-400 text-ink"
+                      )}
+                    >
+                      Log out
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    aria-current={pathname === "/login" ? "page" : undefined}
+                    className={buttonClasses("inverse", "md", "rounded-none")}
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/signup"
+                    aria-current={pathname === "/signup" ? "page" : undefined}
+                    className={buttonClasses("accent", "md", "rounded-none bg-gold-400 text-ink")}
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </details>
