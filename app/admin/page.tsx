@@ -279,6 +279,24 @@ export default async function AdminPage({
         </div>
       </Link>
 
+      {/* Admin tool shortcuts */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { href: "/admin/sync", title: "Data sync hub", blurb: "Ingestion health, coverage & staleness alerts." },
+          { href: "/admin/monitor", title: "Outlier monitor", blurb: "Same-day clashes & weight anomalies." },
+          { href: "/admin/chats", title: "Chat supervisor", blurb: "Read-only oversight of booking chats." },
+        ].map((t) => (
+          <Link
+            key={t.href}
+            href={t.href}
+            className="rounded-2xl border border-line bg-white p-4 shadow-card transition-colors hover:border-turf-200"
+          >
+            <p className="font-display font-semibold text-ink">{t.title} →</p>
+            <p className="mt-0.5 text-sm text-zinc-500">{t.blurb}</p>
+          </Link>
+        ))}
+      </div>
+
       {/* Test accounts panel */}
       <section>
         <div className="mb-4 flex items-center gap-3">
