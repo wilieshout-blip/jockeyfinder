@@ -18,6 +18,32 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   const isAdmin = isAdminEmail(user.email);
 
+  // Paused accounts are locked out of the app (and hidden from public listings
+  // via the public_* views). Admins are never locked out.
+  if (profile?.suspended && !isAdmin) {
+    return (
+      <div className="app-surface min-h-screen">
+        <AppNav
+          name={profile?.full_name || user.email || "Account"}
+          role={profile?.role ?? "owner"}
+          photoUrl={profile?.profile_photo_url ?? null}
+          isAdmin={isAdmin}
+        />
+        <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-7 sm:px-6 lg:px-8 lg:pt-9">
+          <div className="mx-auto max-w-xl border border-amber-200 bg-amber-50 p-8 text-center shadow-card">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-600">Account paused</p>
+            <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">Your account is on hold</h1>
+            <p className="mt-3 text-sm text-zinc-600">
+              Your JockeyFinder account has been paused by an administrator, so it is
+              temporarily hidden and your dashboard is unavailable. If you think this is
+              a mistake, reply to your welcome email and the team will take a look.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   // Fetch managed jockeys for agents (approved only)
   let managedJockeys: { id: string; full_name: string | null; profile_photo_url: string | null }[] = [];
   if (profile?.role === "agent" && profile.verification_status === "approved") {

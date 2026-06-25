@@ -167,6 +167,7 @@ export default async function MeetingDetailPage({
         )
         .eq("role", "jockey")
         .eq("verified", true)
+        .eq("suspended", false)
         .in("full_name", names);
       for (const p of profs ?? []) {
         if (p.full_name) {

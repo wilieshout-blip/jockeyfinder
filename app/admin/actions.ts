@@ -92,6 +92,57 @@ export async function setUserRole(formData: FormData) {
   revalidatePath("/admin/users");
 }
 
+/** Pause or resume a user's account. Suspended users are hidden from public
+ * listings and blocked from the dashboard. Cannot suspend yourself. */
+export async function setUserSuspended(formData: FormData) {
+  const me = await assertAdmin();
+  const id = String(formData.get("user_id") || "");
+  const suspended = String(formData.get("suspended") || "") === "true";
+  if (id && id !== me.id) {
+    const admin = createAdminClient();
+    await admin.from("profiles").update({ suspended }).eq("id", id);
+  }
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
+}
+
+/** Edit a user's core details: name, email, phone, role. Email also updates the
+ * underlying auth identity so the user can still sign in. */
+export async function editUser(formData: FormData) {
+  await assertAdmin();
+  const id = String(formData.get("user_id") || "");
+  if (!id) return;
+
+  const fullName = String(formData.get("full_name") || "").trim();
+  const email = String(formData.get("email") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const role = String(formData.get("role") || "").trim();
+
+  const admin = createAdminClient();
+  const update: Record<string, unknown> = {
+    full_name: fullName || null,
+    email: email || null,
+    phone: phone || null,
+  };
+  if (["jockey", "trainer", "owner", "agent", "admin"].includes(role)) {
+    update.role = role;
+  }
+  await admin.from("profiles").update(update).eq("id", id);
+
+  // Keep the auth identity's email in sync so login still works. Placeholder
+  // accounts have no auth user, so ignore failures.
+  if (email) {
+    try {
+      await admin.auth.admin.updateUserById(id, { email });
+    } catch {
+      // no auth user (e.g. placeholder) — profile email is enough
+    }
+  }
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
+}
+
 /** Delete a user (auth user + profile). Cannot delete yourself. */
 export async function deleteUser(formData: FormData) {
   const me = await assertAdmin();

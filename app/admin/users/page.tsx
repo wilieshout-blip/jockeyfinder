@@ -18,7 +18,7 @@ export default async function AdminUsersPage() {
   const { data } = await admin
     .from("profiles")
     .select(
-      "id, full_name, email, phone, role, verification_status, verified, registry_match, is_test, is_placeholder, created_at"
+      "id, full_name, email, phone, role, verification_status, verified, registry_match, is_test, is_placeholder, suspended, created_at"
     )
     .order("created_at", { ascending: false });
 

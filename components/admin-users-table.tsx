@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import {
   setUserVerification,
-  setUserRole,
+  setUserSuspended,
+  editUser,
   deleteUser,
   sendTestSignupEmail,
 } from "@/app/admin/actions";
@@ -20,6 +21,7 @@ export interface AdminUser {
   registry_match: boolean | null;
   is_test: boolean | null;
   is_placeholder: boolean | null;
+  suspended: boolean | null;
   created_at: string | null;
 }
 
@@ -35,6 +37,7 @@ export function AdminUsersTable({ users }: { users: AdminUser[] }) {
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [testPending, startTest] = useTransition();
   const [testMsg, setTestMsg] = useState<string | null>(null);
 
@@ -111,68 +114,162 @@ export function AdminUsersTable({ users }: { users: AdminUser[] }) {
               <th className="px-3 py-2.5">Role</th>
               <th className="px-3 py-2.5">Status</th>
               <th className="px-3 py-2.5">Verification</th>
-              <th className="px-3 py-2.5"></th>
+              <th className="px-3 py-2.5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {filtered.map((u) => (
-              <tr key={u.id} className="align-top">
-                <td className="px-3 py-3">
-                  <p className="font-semibold text-ink">
-                    {u.full_name || "—"}
-                    {u.is_test ? <span className="ml-1.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">test</span> : null}
-                    {u.is_placeholder ? <span className="ml-1.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">placeholder</span> : null}
-                  </p>
-                  <p className="text-xs text-zinc-500">{u.email || "no email"}</p>
-                  <p className="text-xs text-zinc-400">{u.phone || ""}{u.registry_match ? " · registry ✓" : ""}</p>
-                </td>
-                <td className="px-3 py-3">
-                  <form action={setUserRole} className="flex items-center gap-1">
-                    <input type="hidden" name="user_id" value={u.id} />
-                    <select name="role" defaultValue={u.role ?? "jockey"} className="rounded-lg border border-line bg-white px-2 py-1 text-xs">
-                      {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                    <button className="rounded-lg border border-line px-2 py-1 text-xs text-zinc-600 hover:bg-mist">Save</button>
-                  </form>
-                </td>
-                <td className="px-3 py-3">
-                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold capitalize", statusTone(u.verification_status))}>
-                    {u.verification_status ?? "pending"}
-                  </span>
-                </td>
-                <td className="px-3 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {(["approved", "rejected", "pending"] as const).map((s) => (
-                      <form key={s} action={setUserVerification}>
-                        <input type="hidden" name="user_id" value={u.id} />
-                        <input type="hidden" name="status" value={s} />
+            {filtered.map((u) => {
+              const status = u.verification_status ?? "pending";
+              const isApproved = status === "approved";
+              const isEditing = editingId === u.id;
+              return (
+                <Fragment key={u.id}>
+                  <tr className={cn("align-top", u.suspended && "bg-amber-50/40")}>
+                    <td className="px-3 py-3">
+                      <p className="font-semibold text-ink">
+                        {u.full_name || "—"}
+                        {u.is_test ? <span className="ml-1.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">test</span> : null}
+                        {u.is_placeholder ? <span className="ml-1.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">placeholder</span> : null}
+                      </p>
+                      <p className="text-xs text-zinc-500">{u.email || "no email"}</p>
+                      <p className="text-xs text-zinc-400">{u.phone || ""}{u.registry_match ? " · registry ✓" : ""}</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="rounded-full bg-mist px-2 py-0.5 text-xs font-medium capitalize text-zinc-600">
+                        {u.role ?? "—"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-col items-start gap-1">
+                        <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold capitalize", statusTone(u.verification_status))}>
+                          {status}
+                        </span>
+                        {u.suspended ? (
+                          <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                            Paused
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(["approved", "rejected", "pending"] as const)
+                          .filter((s) => s !== status)
+                          .map((s) => (
+                            <form key={s} action={setUserVerification}>
+                              <input type="hidden" name="user_id" value={u.id} />
+                              <input type="hidden" name="status" value={s} />
+                              <button className="rounded-lg border border-line px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-mist">
+                                {s === "approved" ? "Approve" : s === "rejected" ? "Reject" : "Pending"}
+                              </button>
+                            </form>
+                          ))}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         <button
-                          className={cn(
-                            "rounded-lg px-2 py-1 text-xs font-medium",
-                            (u.verification_status ?? "pending") === s
-                              ? "bg-ink text-white"
-                              : "border border-line text-zinc-600 hover:bg-mist"
-                          )}
+                          onClick={() => setEditingId(isEditing ? null : u.id)}
+                          className="rounded-lg border border-line px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-mist"
                         >
-                          {s === "approved" ? "Approve" : s === "rejected" ? "Reject" : "Pending"}
+                          {isEditing ? "Close" : "Edit"}
                         </button>
-                      </form>
-                    ))}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-right">
-                  <form
-                    action={deleteUser}
-                    onSubmit={(e) => {
-                      if (!confirm(`Delete ${u.full_name || u.email || "this user"}? This cannot be undone.`)) e.preventDefault();
-                    }}
-                  >
-                    <input type="hidden" name="user_id" value={u.id} />
-                    <button className="rounded-lg px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50">Delete</button>
-                  </form>
-                </td>
-              </tr>
-            ))}
+                        <form
+                          action={setUserSuspended}
+                          onSubmit={(e) => {
+                            if (!u.suspended && !confirm(`Pause ${u.full_name || u.email || "this user"}? They'll be hidden from the site and locked out until you resume them.`)) {
+                              e.preventDefault();
+                            }
+                          }}
+                        >
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <input type="hidden" name="suspended" value={u.suspended ? "false" : "true"} />
+                          <button
+                            className={cn(
+                              "rounded-lg px-2 py-1 text-xs font-medium",
+                              u.suspended
+                                ? "bg-turf-600 text-white hover:bg-turf-700"
+                                : "border border-amber-300 text-amber-700 hover:bg-amber-50"
+                            )}
+                          >
+                            {u.suspended ? "Resume" : "Pause"}
+                          </button>
+                        </form>
+                        <form
+                          action={deleteUser}
+                          onSubmit={(e) => {
+                            if (!confirm(`Delete ${u.full_name || u.email || "this user"}? This cannot be undone.`)) e.preventDefault();
+                          }}
+                        >
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <button className="rounded-lg px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50">Delete</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  {isEditing ? (
+                    <tr className="bg-zinc-50">
+                      <td colSpan={5} className="px-3 py-4">
+                        <form
+                          action={editUser}
+                          onSubmit={() => setEditingId(null)}
+                          className="flex flex-wrap items-end gap-3"
+                        >
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
+                            Full name
+                            <input
+                              name="full_name"
+                              defaultValue={u.full_name ?? ""}
+                              className="w-48 rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink outline-none focus:border-turf-500"
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
+                            Email
+                            <input
+                              name="email"
+                              type="email"
+                              defaultValue={u.email ?? ""}
+                              className="w-56 rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink outline-none focus:border-turf-500"
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
+                            Phone
+                            <input
+                              name="phone"
+                              defaultValue={u.phone ?? ""}
+                              className="w-40 rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink outline-none focus:border-turf-500"
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
+                            Role
+                            <select
+                              name="role"
+                              defaultValue={u.role ?? "jockey"}
+                              className="rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink"
+                            >
+                              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <button className="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-700">
+                              Save changes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-mist"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              );
+            })}
             {filtered.length === 0 ? (
               <tr><td colSpan={5} className="px-3 py-8 text-center text-sm text-zinc-400">No users match.</td></tr>
             ) : null}
