@@ -44,6 +44,11 @@ const GROUPS: Group[] = [
           "Once a race has been run, it gets a line through it and says “Finished”, and the meeting drops off the list so you only see what's coming up.",
       },
       {
+        title: "List or calendar view",
+        blurb:
+          "See the race days as a simple list, or flip to a calendar to see the whole month at a glance and tap any day to see what's on.",
+      },
+      {
         title: "Find jockeys and trainers",
         blurb:
           "Two big lists — one of jockeys, one of trainers. You can search by name and tap anyone to see their page.",
