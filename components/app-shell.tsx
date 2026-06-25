@@ -73,6 +73,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           role: profile?.role ?? "",
           trialStartDate: profile?.trial_start_date ?? null,
           stripeStatus: sub?.status ?? null,
+          licenceType: profile?.licence_type ?? null,
         });
         if (!canAccess(accessStatus)) {
           paywallActive = true;

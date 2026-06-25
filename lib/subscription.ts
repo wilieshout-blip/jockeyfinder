@@ -17,13 +17,20 @@ export function getTrialEnd(
   return new Date(effectiveStart.getTime() + days * 86_400_000);
 }
 
+/** Trial-jumpout-only riders ("trial riders") get a free account. */
+export function isFreeLicence(licenceType?: string | null): boolean {
+  return licenceType === "trial_jumpout_only";
+}
+
 export function getAccessStatus(opts: {
   role: string;
   trialStartDate: string | Date | null;
   stripeStatus: string | null;
+  licenceType?: string | null;
 }): AccessStatus {
   const now = new Date();
   if (opts.role === "agent" || opts.role === "admin") return "active";
+  if (isFreeLicence(opts.licenceType)) return "active";
   if (now < BILLING_START_DATE) return "free_period";
   if (opts.stripeStatus === "active") return "active";
   if (opts.stripeStatus === "trialing") return "active";

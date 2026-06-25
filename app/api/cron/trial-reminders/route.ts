@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const supabase = createAdminClient();
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, email, first_name, role, trial_start_date, subscriptions!left(status, trial_reminder_sent, stripe_subscription_id)")
+      .select("id, email, first_name, role, trial_start_date, licence_type, subscriptions!left(status, trial_reminder_sent, stripe_subscription_id)")
       .in("role", ["jockey", "trainer", "owner"]);
 
     if (!profiles) return NextResponse.json({ sent: 0 });
@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
     let deliveryFailed = 0;
 
     for (const profile of profiles) {
+      if (profile.licence_type === "trial_jumpout_only") continue; // trial riders are free
       const sub = (profile.subscriptions as unknown as Array<{status: string; trial_reminder_sent: boolean; stripe_subscription_id: string | null}>)?.[0];
       if (sub?.stripe_subscription_id) continue; // already subscribed
       if (sub?.trial_reminder_sent) continue;

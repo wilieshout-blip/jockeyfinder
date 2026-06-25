@@ -22,6 +22,8 @@ function StatusBadge({ status }: { status: AccessStatus }) {
 
 export default function BillingPage() {
   const [role, setRole] = useState<string | null>(null);
+  const [licenceType, setLicenceType] = useState<string | null>(null);
+  const [apprentice, setApprentice] = useState(false);
   const [trialStart, setTrialStart] = useState<string | null>(null);
   const [sub, setSub] = useState<SubRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,10 +37,12 @@ export default function BillingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const [{ data: p }, { data: s }] = await Promise.all([
-        supabase.from("profiles").select("role, trial_start_date").eq("id", user.id).single(),
+        supabase.from("profiles").select("role, trial_start_date, licence_type, apprentice").eq("id", user.id).single(),
         supabase.from("subscriptions").select("status, stripe_subscription_id, trial_end, current_period_end").eq("user_id", user.id).single(),
       ]);
       setRole(p?.role ?? null);
+      setLicenceType(p?.licence_type ?? null);
+      setApprentice(p?.apprentice ?? false);
       setTrialStart(p?.trial_start_date ?? null);
       setSub(s);
       setLoading(false);
@@ -84,9 +88,10 @@ export default function BillingPage() {
 
   const now = new Date();
   const isFreePeriod = now < BILLING_START_DATE;
-  const isFreeRole = role === "agent" || role === "admin";
+  const isTrialRider = licenceType === "trial_jumpout_only";
+  const isFreeRole = role === "agent" || role === "admin" || isTrialRider;
   const price = ROLE_PRICE_DISPLAY[role] ?? "";
-  const accessStatus = getAccessStatus({ role, trialStartDate: trialStart, stripeStatus: sub?.status ?? null });
+  const accessStatus = getAccessStatus({ role, trialStartDate: trialStart, stripeStatus: sub?.status ?? null, licenceType });
   const daysLeft = daysUntilTrialEnd(role, trialStart);
   const hasStripeSub = !!sub?.stripe_subscription_id;
 
@@ -103,8 +108,12 @@ export default function BillingPage() {
 
       {isFreeRole ? (
         <div className="p-6 bg-gray-50 rounded-lg border">
-          <p className="font-semibold capitalize">{role} account</p>
-          <p className="text-gray-600 mt-1">Your account type is always free.</p>
+          <p className="font-semibold">{isTrialRider ? "Trial rider account" : `${role.charAt(0).toUpperCase() + role.slice(1)} account`}</p>
+          <p className="text-gray-600 mt-1">
+            {isTrialRider
+              ? "Trial riders use JockeyFinder for free — no subscription needed."
+              : "Your account type is always free."}
+          </p>
         </div>
       ) : (
         <>
@@ -113,6 +122,11 @@ export default function BillingPage() {
               <div>
                 <p className="font-semibold capitalize">{role} plan</p>
                 <p className="text-gray-500 text-sm">{price}</p>
+                {role === "jockey" && apprentice ? (
+                  <p className="mt-1 inline-block rounded-full bg-turf-50 px-2 py-0.5 text-xs font-semibold text-turf-700">
+                    Apprentice discount applied at checkout
+                  </p>
+                ) : null}
               </div>
               <StatusBadge status={accessStatus} />
             </div>
