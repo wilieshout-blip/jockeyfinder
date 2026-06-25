@@ -30,6 +30,8 @@ export interface Profile {
   created_at: string;
   trial_start_date?: string | null;
   suspended?: boolean | null;
+  email_notify_messages?: boolean | null;
+  email_notify_marketing?: boolean | null;
   updated_at: string;
 }
 

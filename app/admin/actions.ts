@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/utils";
-import { emailNewSignup } from "@/lib/email";
+import { emailNewSignup, sendBroadcastEmail } from "@/lib/email";
+import { isAudience } from "@/lib/email-templates";
 import { syncMeetings } from "@/lib/loveracing";
 import {
   syncUpcomingRaceEntries,
@@ -170,6 +171,72 @@ export async function sendTestSignupEmail(): Promise<{ ok: boolean }> {
     test: true,
   });
   return { ok };
+}
+
+/** Count broadcast-eligible recipients per audience (for the console preview). */
+export async function getBroadcastAudienceCounts(): Promise<Record<string, number>> {
+  await assertAdmin();
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("profiles")
+    .select("role")
+    .neq("verification_status", "rejected")
+    .eq("is_test", false)
+    .eq("is_placeholder", false)
+    .eq("suspended", false)
+    .eq("email_notify_marketing", true)
+    .not("email", "is", null);
+  const counts: Record<string, number> = { all: 0 };
+  for (const r of data ?? []) {
+    counts.all += 1;
+    counts[r.role ?? "?"] = (counts[r.role ?? "?"] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/** Send an admin-authored broadcast to an audience. Respects the marketing
+ * opt-out and never emails rejected, suspended, test or placeholder accounts.
+ * {{first_name}} in the subject/body is personalised per recipient. */
+export async function sendBroadcast(input: {
+  audience: string;
+  subject: string;
+  body: string;
+}): Promise<{ ok: boolean; sent: number; total: number; error?: string }> {
+  await assertAdmin();
+
+  const subject = (input.subject ?? "").trim();
+  const body = (input.body ?? "").trim();
+  if (!isAudience(input.audience)) return { ok: false, sent: 0, total: 0, error: "Invalid audience" };
+  if (!subject) return { ok: false, sent: 0, total: 0, error: "Subject is required" };
+  if (!body) return { ok: false, sent: 0, total: 0, error: "Body is required" };
+
+  const admin = createAdminClient();
+  let query = admin
+    .from("profiles")
+    .select("id, email, first_name, full_name, role")
+    .neq("verification_status", "rejected")
+    .eq("is_test", false)
+    .eq("is_placeholder", false)
+    .eq("suspended", false)
+    .eq("email_notify_marketing", true)
+    .not("email", "is", null);
+  if (input.audience !== "all") query = query.eq("role", input.audience);
+
+  const { data: recipients, error } = await query;
+  if (error) return { ok: false, sent: 0, total: 0, error: error.message };
+
+  const list = recipients ?? [];
+  let sent = 0;
+  for (const r of list) {
+    if (!r.email) continue;
+    const firstName = r.first_name || (r.full_name ? r.full_name.split(/\s+/)[0] : "") || "there";
+    const personalSubject = subject.replaceAll("{{first_name}}", firstName);
+    const personalBody = body.replaceAll("{{first_name}}", firstName);
+    const ok = await sendBroadcastEmail(r.email, personalSubject, personalBody);
+    if (ok) sent += 1;
+  }
+
+  return { ok: true, sent, total: list.length };
 }
 
 export async function markAgentPaid(formData: FormData) {

@@ -280,8 +280,9 @@ export default async function AdminPage({
       </Link>
 
       {/* Admin tool shortcuts */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
+          { href: "/admin/broadcast", title: "Broadcast email", blurb: "Send a templated email to all users or a user type." },
           { href: "/admin/sync", title: "Data sync hub", blurb: "Ingestion health, coverage & staleness alerts." },
           { href: "/admin/monitor", title: "Outlier monitor", blurb: "Same-day clashes & weight anomalies." },
           { href: "/admin/chats", title: "Chat supervisor", blurb: "Read-only oversight of booking chats." },

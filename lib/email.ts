@@ -75,6 +75,15 @@ function cta(label: string, href: string) {
   return `<a href="${href}" style="display:inline-block;margin-top:20px;background:#16a34a;color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:10px 22px;border-radius:99px">${label}</a>`;
 }
 
+/** Escape user-supplied text before embedding it in email HTML. */
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function detail(
   horseName?: string | null,
   track?: string | null,
@@ -175,6 +184,40 @@ export async function emailRideAssigned(opts: {
       ${cta("Open messages →", `${SITE_URL}/dashboard/messages`)}
     `)
   );
+}
+
+/** Email a chat participant when they receive a new message. */
+export async function emailNewMessage(opts: {
+  to: string;
+  senderName: string;
+  preview: string;
+  threadId: string;
+}) {
+  const preview =
+    opts.preview.length > 140 ? opts.preview.slice(0, 140).trim() + "…" : opts.preview;
+  return sendEmail(
+    opts.to,
+    `New message from ${opts.senderName}`,
+    emailLayout(`
+      <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827">New message 💬</h2>
+      <p style="margin:0 0 14px;font-size:15px;color:#374151">
+        <strong>${escapeHtml(opts.senderName)}</strong> sent you a message on JockeyFinder:
+      </p>
+      <blockquote style="margin:0;padding:12px 16px;border-left:3px solid #16a34a;background:#f0fdf4;border-radius:8px;font-size:15px;color:#374151">
+        ${escapeHtml(preview)}
+      </blockquote>
+      ${cta("Open the conversation →", `${SITE_URL}/dashboard/messages/${opts.threadId}`)}
+      <p style="margin:18px 0 0;font-size:12px;color:#9ca3af">
+        You can turn message emails off under Notifications in your profile settings.
+      </p>
+    `)
+  );
+}
+
+/** Send an admin-authored broadcast email (subject + HTML body) to one address.
+ * The body is wrapped in the standard branded layout. */
+export async function sendBroadcastEmail(to: string, subject: string, bodyHtml: string) {
+  return sendEmail(to, subject, emailLayout(bodyHtml));
 }
 
 /** Notify the site admin when a new user signs up. */
