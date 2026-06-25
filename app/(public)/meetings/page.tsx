@@ -1,14 +1,34 @@
 export const revalidate = 900;
 
 import { Suspense } from "react";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
 import { MeetingCard } from "@/components/racing";
 import { EmptyState } from "@/components/ui/empty";
 import { MeetingsFilterBar } from "@/components/meetings-filter-bar";
+import { MeetingsCalendar } from "@/components/meetings-calendar";
 import { PageHeader } from "@/components/premium";
 import { nzToday, nzDatePlusDays } from "@/lib/utils";
 import type { Meeting, PublicAttendance } from "@/lib/types";
+
+/** List / Calendar view switcher. */
+function ViewToggle({ current }: { current: "list" | "calendar" }) {
+  const base =
+    "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors";
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full border border-line bg-white p-1 shadow-card">
+      <Link href="/meetings" className={`${base} ${current === "list" ? "bg-ink text-white" : "text-zinc-500 hover:text-ink"}`}>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 4h12M2 8h12M2 12h12" strokeLinecap="round"/></svg>
+        List
+      </Link>
+      <Link href="/meetings?view=calendar" className={`${base} ${current === "calendar" ? "bg-ink text-white" : "text-zinc-500 hover:text-ink"}`}>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5.5 2v2M10.5 2v2" strokeLinecap="round"/></svg>
+        Calendar
+      </Link>
+    </div>
+  );
+}
 
 export const metadata: Metadata = {
   title: "Race Meetings",
@@ -29,11 +49,12 @@ const PREMIER_TRACKS = [
 export default async function MeetingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; day?: string; cat?: string }>;
+  searchParams: Promise<{ type?: string; day?: string; cat?: string; view?: string }>;
 }) {
   const queryParams = await searchParams;
   const supabase = createPublicClient();
 
+  const view = queryParams.view === "calendar" ? "calendar" : "list";
   const typeFilter = queryParams.type ?? "";
   const dayFilter = queryParams.day ?? "";
   const catFilter = queryParams.cat ?? "";
@@ -42,6 +63,31 @@ export default async function MeetingsPage({
 
   const from = nzToday();
   const to = nzDatePlusDays(90);
+
+  // Calendar view: a month grid of all meetings (race + trial). The calendar
+  // component has its own region/premier/trials filters and month navigation.
+  if (view === "calendar") {
+    const { data: calMeetings } = await supabase
+      .from("meetings")
+      .select("id, nztr_day_id, meeting_date, track, club, meeting_type")
+      .gte("meeting_date", from)
+      .lte("meeting_date", to)
+      .order("meeting_date", { ascending: true });
+
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <PageHeader
+          eyebrow="Next 90 days"
+          title="Race meetings"
+          description="Upcoming New Zealand meetings in a calendar. Tap a day to see what's on."
+        />
+        <div className="-mt-2 mb-5">
+          <ViewToggle current="calendar" />
+        </div>
+        <MeetingsCalendar meetings={calMeetings ?? []} />
+      </div>
+    );
+  }
 
   let query = supabase
     .from("meetings")
@@ -134,6 +180,10 @@ export default async function MeetingsPage({
         title="Race meetings"
         description="Upcoming New Zealand meetings with attending jockeys, weights, and claims as declared."
       />
+
+      <div className="-mt-2 mb-4">
+        <ViewToggle current="list" />
+      </div>
 
       <p className="-mt-3 mb-1 text-sm text-zinc-500">
         {filtered.length} upcoming {filtered.length === 1 ? "meeting" : "meetings"} · race and trial
