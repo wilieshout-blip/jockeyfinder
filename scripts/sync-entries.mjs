@@ -54,6 +54,7 @@ const DAYS = parseInt(arg("days", "21"), 10);
 const ONE_DAY = arg("day", null);
 const DELAY = parseInt(arg("delay", "500"), 10);
 const SOURCE = arg("source", "local"); // who ran it: local | github
+const RUN_START = new Date().toISOString(); // entries older than this in a re-scraped race are stale
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -185,6 +186,20 @@ async function syncMeeting(meeting) {
     .from("race_entries")
     .upsert(rows, { onConflict: "nztr_day_id,race_number,horse_name" });
   if (error) return { ok: false, reason: error.message };
+
+  // Remove stale rows ONLY in the races we just re-captured (older than this run).
+  // Races we didn't capture this run are left untouched, so a partial scrape can
+  // never wipe a race. This clears prior-sync leftovers that caused duplicate
+  // jockey rides (a rider showing on horses they were later replaced on).
+  const capturedRaces = [...new Set(rows.map((r) => r.race_number))];
+  if (capturedRaces.length > 0) {
+    await supabase
+      .from("race_entries")
+      .delete()
+      .eq("nztr_day_id", meeting.nztr_day_id)
+      .in("race_number", capturedRaces)
+      .lt("synced_at", RUN_START);
+  }
 
   return { ok: true, entries: rows.length, jockeys };
 }
