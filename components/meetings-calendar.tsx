@@ -9,14 +9,8 @@ export interface CalMeeting {
   track: string;
   club: string | null;
   meeting_type: string | null;
-}
-
-const PREMIER_TRACKS = new Set([
-  "ellerslie","trentham","riccarton park","wingatui","pukekohe park","te rapa",
-]);
-
-function isPremier(track: string) {
-  return PREMIER_TRACKS.has(track.toLowerCase().replace(/ (synthetic|raceway|park)$/i, "").trim());
+  /** True when the meeting contains a Group/Listed (black-type) race. */
+  premier?: boolean;
 }
 
 function getRegion(track: string) {
@@ -46,7 +40,7 @@ export function MeetingsCalendar({ meetings }: { meetings: CalMeeting[] }) {
     const map: Record<string, CalMeeting[]> = {};
     for (const m of meetings) {
       if (!showTrials && m.meeting_type === "T") continue;
-      if (filter === "premier" && !isPremier(m.track)) continue;
+      if (filter === "premier" && !m.premier) continue;
       if (filter === "saturday") {
         const d = new Date(m.meeting_date + "T00:00:00");
         if (d.getDay() !== 6) continue;
@@ -150,7 +144,7 @@ export function MeetingsCalendar({ meetings }: { meetings: CalMeeting[] }) {
                   <div className="mt-1 space-y-0.5">
                     {dayMs.slice(0, 3).map((m) => (
                       <div key={m.id} className={`truncate rounded px-1 py-0.5 text-[9px] font-bold leading-tight ${
-                        m.meeting_type === "T" ? "bg-zinc-200 text-zinc-500" : isPremier(m.track) ? "bg-amber-100 text-amber-800" : "bg-turf-100 text-turf-800"
+                        m.meeting_type === "T" ? "bg-zinc-200 text-zinc-500" : m.premier ? "bg-amber-100 text-amber-800" : "bg-turf-100 text-turf-800"
                       }`}>
                         {m.track.replace(/ (Synthetic|Raceway|Park Raceway)$/i,"").replace("Riccarton Park","Riccarton").slice(0,14)}
                       </div>
@@ -191,7 +185,7 @@ export function MeetingsCalendar({ meetings }: { meetings: CalMeeting[] }) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-ink">{m.track}</span>
-                      {isPremier(m.track) && (
+                      {m.premier && (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase tracking-wide">Premier</span>
                       )}
                       {m.meeting_type === "T" && (

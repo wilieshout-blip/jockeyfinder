@@ -35,17 +35,6 @@ export const metadata: Metadata = {
   description: "Upcoming New Zealand race meetings and trials with attending jockeys, weights, and claims.",
 };
 
-const PREMIER_TRACKS = [
-  "Ellerslie",
-  "Te Rapa",
-  "Riccarton Park",
-  "Hastings",
-  "Taupo",
-  "New Plymouth Raceway",
-  "Awapuni",
-  "Wingatui",
-];
-
 export default async function MeetingsPage({
   searchParams,
 }: {
@@ -64,6 +53,17 @@ export default async function MeetingsPage({
   const from = nzToday();
   const to = nzDatePlusDays(90);
 
+  // A meeting is "premier" when it contains a Group/Listed (black-type) race.
+  const { data: premierRaces } = await supabase
+    .from("races")
+    .select("nztr_day_id")
+    .not("group_level", "is", null);
+  const premierDayIds = new Set<number>(
+    (premierRaces ?? [])
+      .map((r) => r.nztr_day_id as number | null)
+      .filter((v): v is number => v != null)
+  );
+
   // Calendar view: a month grid of all meetings (race + trial). The calendar
   // component has its own region/premier/trials filters and month navigation.
   if (view === "calendar") {
@@ -73,6 +73,11 @@ export default async function MeetingsPage({
       .gte("meeting_date", from)
       .lte("meeting_date", to)
       .order("meeting_date", { ascending: true });
+
+    const calWithPremier = (calMeetings ?? []).map((m) => ({
+      ...m,
+      premier: m.nztr_day_id != null && premierDayIds.has(m.nztr_day_id),
+    }));
 
     return (
       <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
@@ -84,7 +89,7 @@ export default async function MeetingsPage({
         <div className="-mt-2 mb-5">
           <ViewToggle current="calendar" />
         </div>
-        <MeetingsCalendar meetings={calMeetings ?? []} />
+        <MeetingsCalendar meetings={calWithPremier} />
       </div>
     );
   }
@@ -119,8 +124,8 @@ export default async function MeetingsPage({
   }
 
   if (catFilter === "premier") {
-    filtered = filtered.filter((m) =>
-      PREMIER_TRACKS.some((t) => m.track.startsWith(t))
+    filtered = filtered.filter(
+      (m) => m.nztr_day_id != null && premierDayIds.has(m.nztr_day_id)
     );
   }
 

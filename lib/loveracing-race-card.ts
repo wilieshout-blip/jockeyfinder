@@ -78,6 +78,20 @@ function parseNZStartTime(timeStr: string, meetingDate: string): string | null {
   return isNaN(dt.getTime()) ? null : dt.toISOString();
 }
 
+/**
+ * Black-type level from a race title/conditions, e.g. "Tarzino Trophy (Gr 1)"
+ * -> "G1", "... (Listed)" -> "Listed". Requires a digit right after Gr/Group so
+ * sponsor names containing the word "Group" (e.g. "Supporters Group") don't
+ * false-match. Returns null for ordinary races.
+ */
+function parseGroupLevel(text: string): string | null {
+  const g = text.match(new RegExp("\\bgr(?:oup)?\\.?\\s*([123])\\b", "i"));
+  if (g) return "G" + g[1];
+  if (new RegExp("\\blisted\\b", "i").test(text)) return "Listed";
+  if (new RegExp("\\(\\s*LR\\s*\\)", "i").test(text)) return "Listed";
+  return null;
+}
+
 function parseConditions(condsDist: string): {
   distance: number | null;
   race_class: string | null;
@@ -110,6 +124,7 @@ function scrapeMeetingRaces(
   start_time: string | null;
   distance: number | null;
   race_class: string | null;
+  group_level: string | null;
 }> {
   const races: Array<{
     race_number: number;
@@ -117,6 +132,7 @@ function scrapeMeetingRaces(
     start_time: string | null;
     distance: number | null;
     race_class: string | null;
+    group_level: string | null;
   }> = [];
 
   const tableRegex = new RegExp(
@@ -150,6 +166,7 @@ function scrapeMeetingRaces(
       start_time: parseNZStartTime(cells[1], meetingDate),
       distance,
       race_class,
+      group_level: parseGroupLevel(raceName + " " + (cells[3] ?? "")),
     });
   }
 
@@ -281,6 +298,7 @@ export async function syncUpcomingRaces(days = 14): Promise<RaceCardSyncResult> 
         start_time: r.start_time,
         distance: r.distance,
         race_class: r.race_class,
+        group_level: r.group_level,
       }));
 
       const { error } = await supabase
