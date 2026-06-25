@@ -195,6 +195,9 @@ export function RaceDayAccordions({
   );
   const canRequest = role === "jockey" || role === "agent";
   const now = Date.now();
+  const allFinished =
+    allRaceNums.length > 0 &&
+    allRaceNums.every((n) => isRaceFinished(raceMap.get(n)?.start_time, now));
 
   const totals = useMemo(() => {
     const allEntries = Object.values(entriesByRace).flat();
@@ -238,10 +241,12 @@ export function RaceDayAccordions({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-turf-700">
-              Live race card
+              {allFinished ? "Race card" : "Live race card"}
             </p>
             <p className="mt-1 text-sm text-zinc-500">
-              Updates every 15 minutes from the racing feed.
+              {allFinished
+                ? "This meeting has finished."
+                : "Updates every 15 minutes from the racing feed."}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 text-center sm:flex">
@@ -251,12 +256,20 @@ export function RaceDayAccordions({
             <span className="rounded-xl bg-mist px-3 py-2 text-xs font-semibold text-zinc-600">
               {totals.runners} runners
             </span>
-            <span className="rounded-xl bg-turf-50 px-3 py-2 text-xs font-semibold text-turf-700">
-              {totals.confirmed} confirmed riders
-            </span>
-            <span className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
-              {totals.open} open rides
-            </span>
+            {allFinished ? (
+              <span className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-semibold text-zinc-500">
+                Finished
+              </span>
+            ) : (
+              <>
+                <span className="rounded-xl bg-turf-50 px-3 py-2 text-xs font-semibold text-turf-700">
+                  {totals.confirmed} confirmed riders
+                </span>
+                <span className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                  {totals.open} open rides
+                </span>
+              </>
+            )}
           </div>
         </div>
 
