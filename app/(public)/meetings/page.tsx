@@ -78,6 +78,37 @@ export default async function MeetingsPage({
     );
   }
 
+  // Drop meetings whose last race has already run, so the tab only shows
+  // live/upcoming days. A meeting is considered done ~30 min after its final
+  // race's scheduled start time. Meetings with no known race times are kept.
+  const FINISHED_BUFFER_MS = 30 * 60 * 1000;
+  const nowMs = Date.now();
+  const dayIds = filtered
+    .map((m) => m.nztr_day_id)
+    .filter((v): v is number => v != null);
+  if (dayIds.length > 0) {
+    const { data: raceRows } = await supabase
+      .from("races")
+      .select("nztr_day_id, start_time")
+      .in("nztr_day_id", dayIds)
+      .not("start_time", "is", null);
+    const lastStartByDay = new Map<number, number>();
+    for (const r of raceRows ?? []) {
+      const t = r.start_time ? new Date(r.start_time as string).getTime() : NaN;
+      if (!Number.isNaN(t)) {
+        lastStartByDay.set(
+          r.nztr_day_id,
+          Math.max(lastStartByDay.get(r.nztr_day_id) ?? 0, t)
+        );
+      }
+    }
+    filtered = filtered.filter((m) => {
+      const last = m.nztr_day_id != null ? lastStartByDay.get(m.nztr_day_id) : undefined;
+      if (last === undefined) return true; // no race times known — keep it
+      return last + FINISHED_BUFFER_MS >= nowMs;
+    });
+  }
+
   const meetingIds = filtered.map((m) => m.id);
   let attendance: PublicAttendance[] = [];
   if (meetingIds.length > 0) {

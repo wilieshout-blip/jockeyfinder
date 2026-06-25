@@ -56,6 +56,13 @@ function normalize(value: string | null | undefined) {
   return (value ?? "").toLowerCase().trim();
 }
 
+/** A race is "finished" once its scheduled start time has passed. */
+function isRaceFinished(startTime: string | null | undefined, now: number): boolean {
+  if (!startTime) return false;
+  const t = new Date(startTime).getTime();
+  return !Number.isNaN(t) && t < now;
+}
+
 /** Race type + distance, e.g. "MDN HDL 2800m" — falls back to the race name. */
 function raceLabel(race: RaceData | undefined): string {
   if (!race) return "";
@@ -187,6 +194,7 @@ export function RaceDayAccordions({
     [races]
   );
   const canRequest = role === "jockey" || role === "agent";
+  const now = Date.now();
 
   const totals = useMemo(() => {
     const allEntries = Object.values(entriesByRace).flat();
@@ -290,6 +298,7 @@ export function RaceDayAccordions({
         const shownEntries = visibleEntries(entries);
         const confirmedCount = uniqueRiders(entries);
         const isOpen = openRaces.has(raceNum);
+        const finished = isRaceFinished(race?.start_time, now);
 
         return (
           <div
@@ -305,18 +314,33 @@ export function RaceDayAccordions({
                 R{raceNum}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-ink">
+                <p
+                  className={cn(
+                    "truncate text-sm font-semibold text-ink",
+                    finished && "text-zinc-400 line-through"
+                  )}
+                >
                   {raceLabel(race) || "Race " + raceNum}
                 </p>
                 <p className="text-xs text-zinc-500">
-                  {[formatTime(race?.start_time ?? null), entries.length + " runners"]
+                  {[
+                    formatTime(race?.start_time ?? null),
+                    entries.length + " runners",
+                    finished ? "Finished" : null,
+                  ]
                     .filter(Boolean)
                     .join(" - ")}
                 </p>
               </div>
-              <span className="hidden rounded-full bg-turf-50 px-2.5 py-1 text-xs font-semibold text-turf-700 sm:inline-flex">
-                {confirmedCount} riders confirmed
-              </span>
+              {finished ? (
+                <span className="hidden rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-500 sm:inline-flex">
+                  Finished
+                </span>
+              ) : (
+                <span className="hidden rounded-full bg-turf-50 px-2.5 py-1 text-xs font-semibold text-turf-700 sm:inline-flex">
+                  {confirmedCount} riders confirmed
+                </span>
+              )}
               <svg
                 className={cn(
                   "h-4 w-4 shrink-0 text-zinc-400 transition-transform",
