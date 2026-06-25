@@ -321,6 +321,52 @@ export default async function DashboardPage() {
 
       <VerificationBanner profile={profile} />
 
+      {(() => {
+        const tiles: { label: string; value: string | number }[] =
+          profile.role === "jockey"
+            ? [
+                { label: "Attending", value: attendingMeetings.length },
+                {
+                  label: "Riding weight",
+                  value: profile.riding_weight != null ? `${profile.riding_weight}kg` : "—",
+                },
+                { label: "Status", value: verified ? "Verified" : "Pending" },
+              ]
+            : profile.role === "trainer"
+            ? [
+                { label: "Stable horses", value: trainerConfirmed },
+                { label: "Upcoming runners", value: trainerUpcomingRunners.length },
+                { label: "Preferred riders", value: preferredRiders.length },
+              ]
+            : profile.role === "owner"
+            ? [
+                { label: "Linked horses", value: ownerConfirmedLinks.length },
+                { label: "Upcoming runners", value: ownerUpcomingRunners.length },
+                { label: "Card matches", value: ownerHorseClaims.length },
+              ]
+            : profile.role === "agent"
+            ? [{ label: "Your jockeys", value: managed.length }]
+            : [];
+        if (tiles.length === 0) return null;
+        return (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {tiles.map((t) => (
+              <div
+                key={t.label}
+                className="rounded-2xl border border-line bg-white p-4 shadow-card"
+              >
+                <p className="font-display text-2xl font-semibold tracking-tight text-ink">
+                  {t.value}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+                  {t.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {showGettingStarted ? (
         <section className="rounded-2xl border border-turf-200 bg-turf-50/50 p-5">
           <h2 className="font-display text-lg font-semibold text-ink">Getting started</h2>
