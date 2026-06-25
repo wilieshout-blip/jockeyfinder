@@ -37,13 +37,29 @@ export function DateBlock({
   );
 }
 
-export function JockeyChip({ jockey }: { jockey: PublicAttendance }) {
+export function JockeyChip({
+  jockey,
+  preferred = false,
+}: {
+  jockey: PublicAttendance;
+  preferred?: boolean;
+}) {
   const claim = formatClaim(jockey.apprentice_claim);
   return (
     <Link
       href={`/jockeys/${jockey.jockey_id}`}
-      className="flex items-center gap-3 rounded-lg border border-line bg-white px-3 py-2.5 transition-all hover:border-turf-300 hover:bg-turf-50/40"
+      className={cn(
+        "flex items-center gap-3 rounded-lg border bg-white px-3 py-2.5 transition-all hover:border-turf-300 hover:bg-turf-50/40",
+        preferred ? "border-amber-300 bg-amber-50/40" : "border-line"
+      )}
     >
+      {preferred ? (
+        <span className="text-amber-400" title="Preferred rider" aria-label="Preferred rider">
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 1.5l2.6 5.27 5.82.85-4.21 4.1.99 5.78L10 14.77l-5.2 2.73.99-5.78-4.21-4.1 5.82-.85z" />
+          </svg>
+        </span>
+      ) : null}
       <Avatar src={jockey.profile_photo_url} name={jockey.full_name} size="sm" />
       <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
         {jockey.full_name}

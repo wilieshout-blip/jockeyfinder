@@ -121,6 +121,19 @@ export default async function MeetingDetailPage({
     myAttending = myAtt?.attending ?? false;
   }
 
+  // Logged-in trainer's preferred-rider shortlist: starred and sorted to the top
+  // of "Riding here". Read under RLS (trainer sees only their own rows).
+  const preferredIds = new Set<string>();
+  if (sessionClient && userId && userRole === "trainer") {
+    const { data: prefs } = await sessionClient
+      .from("trainer_preferred_jockeys")
+      .select("jockey_id")
+      .eq("trainer_id", userId);
+    for (const p of prefs ?? []) {
+      if (p.jockey_id) preferredIds.add(p.jockey_id as string);
+    }
+  }
+
   // "Riding here": everyone declared to ride at this meeting per the race card,
   // including jockeys who don't have a JockeyFinder account. App jockeys are
   // matched by name so their chip links to their profile.
@@ -128,6 +141,7 @@ export default async function MeetingDetailPage({
     name: string;
     rides: number;
     profile: PublicAttendance | null;
+    preferred: boolean;
   };
   let ridingHere: RidingHere[] = [];
   if (meeting.nztr_day_id) {
@@ -173,12 +187,20 @@ export default async function MeetingDetailPage({
     }
 
     ridingHere = names
-      .sort((a, b) => a.localeCompare(b))
-      .map((name) => ({
-        name,
-        rides: counts.get(name) ?? 0,
-        profile: profileByName.get(name.toLowerCase()) ?? null,
-      }));
+      .map((name) => {
+        const profile = profileByName.get(name.toLowerCase()) ?? null;
+        return {
+          name,
+          rides: counts.get(name) ?? 0,
+          profile,
+          preferred: profile ? preferredIds.has(profile.jockey_id) : false,
+        };
+      })
+      // Preferred riders first, then alphabetical by name.
+      .sort((a, b) => {
+        if (a.preferred !== b.preferred) return a.preferred ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
   }
 
   let racesFromDb: RaceRow[] = [];
@@ -377,7 +399,7 @@ export default async function MeetingDetailPage({
             <div className="space-y-2">
               {ridingHere.map((r) =>
                 r.profile ? (
-                  <JockeyChip key={r.name} jockey={r.profile} />
+                  <JockeyChip key={r.name} jockey={r.profile} preferred={r.preferred} />
                 ) : (
                   <div
                     key={r.name}

@@ -10,6 +10,8 @@ import { QuickWeightForm } from "@/components/quick-weight-form";
 import { IdUploadForm } from "@/components/id-upload-form";
 import { HorsePreloadWizard } from "@/components/horse-preload-wizard";
 import { TrainerHorses } from "@/components/trainer-horses";
+import { PreferredRiders } from "@/components/preferred-riders";
+import type { PreferredJockey } from "@/components/preferred-riders";
 import { OwnerHorseClaim } from "@/components/owner-horse-claim";
 import { PageHeader } from "@/components/premium";
 import {
@@ -170,6 +172,39 @@ export default async function DashboardPage() {
           return Number(a.race_number ?? 0) - Number(b.race_number ?? 0);
         })
         .slice(0, 6);
+    }
+  }
+
+  // Trainer: preferred-rider shortlist (max 5). Rows are managed under RLS by the
+  // trainer; we join the jockeys' public display data for the manager UI.
+  let preferredRiders: PreferredJockey[] = [];
+  if (profile.role === "trainer") {
+    const { data: rows } = await supabase
+      .from("trainer_preferred_jockeys")
+      .select("id, jockey_id, created_at")
+      .eq("trainer_id", user.id)
+      .order("created_at", { ascending: true });
+    const jockeyIds = (rows ?? []).map((r) => r.jockey_id);
+    if (jockeyIds.length > 0) {
+      const { data: jockeys } = await supabase
+        .from("public_profiles")
+        .select("id, full_name, profile_photo_url, riding_weight, apprentice, apprentice_claim")
+        .in("id", jockeyIds);
+      const byId = new Map((jockeys ?? []).map((j: any) => [j.id, j]));
+      preferredRiders = (rows ?? [])
+        .filter((r) => byId.has(r.jockey_id))
+        .map((r) => {
+          const j: any = byId.get(r.jockey_id);
+          return {
+            id: r.id,
+            jockey_id: r.jockey_id,
+            full_name: j.full_name,
+            profile_photo_url: j.profile_photo_url,
+            riding_weight: j.riding_weight,
+            apprentice: j.apprentice ?? false,
+            apprentice_claim: j.apprentice_claim,
+          };
+        });
     }
   }
 
@@ -480,6 +515,8 @@ export default async function DashboardPage() {
               </EmptyState>
             )}
           </section>
+
+          <PreferredRiders trainerId={profile.id} initialPreferred={preferredRiders} />
 
           <TrainerHorses initialLinks={trainerHorseLinks} role="trainer" />
         </>
