@@ -25,6 +25,8 @@ import {
 } from "@/lib/utils";
 import type { Meeting, Profile, RideRequest } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 function VerificationBanner({ profile }: { profile: Profile }) {
   if (profile.verification_status === "approved") return null;
   if (profile.verification_status === "rejected") {
