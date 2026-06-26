@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { signIn } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
@@ -21,7 +22,7 @@ function SubmitButton() {
 }
 
 export default function LoginPage() {
-  const [state, formAction] = useFormState(signIn, { error: null });
+  const [state, formAction] = useActionState(signIn, { error: null });
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col px-4 py-14 sm:py-20">
