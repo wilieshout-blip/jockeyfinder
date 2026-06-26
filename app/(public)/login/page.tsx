@@ -1,16 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
-import { PasswordInput } from "@/components/ui/password-input";
-import { friendlyAuthError } from "@/lib/auth-errors";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,11 +22,18 @@ export default function LoginPage() {
     });
     setBusy(false);
     if (error) {
-      setError(friendlyAuthError(error, "Unable to log in. Please try again."));
+      setError(error.message);
       return;
     }
-    router.push("/dashboard");
-    router.refresh();
+    // Hard redirect instead of router.push + router.refresh.
+    // In Next.js 14 App Router, calling router.push and router.refresh
+    // together without await creates a race condition: the refresh
+    // re-fetches /login before the push completes, and the competing
+    // navigation states cancel each other, leaving the user on /login
+    // despite a successful sign-in.
+    // window.location.replace does a clean full-page HTTP redirect that
+    // carries all cookies, bypassing React Router state entirely.
+    window.location.replace("/dashboard");
   }
 
   return (
@@ -42,13 +45,7 @@ export default function LoginPage() {
         Welcome back. Plan your race days in one place.
       </p>
 
-      <form
-        className="mt-8 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
+      <div className="mt-8 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card">
         <div>
           <Label htmlFor="email">Email</Label>
           <Input
@@ -58,18 +55,20 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.co.nz"
-            required
           />
         </div>
         <div>
           <Label htmlFor="password">Password</Label>
-          <PasswordInput
+          <Input
             id="password"
+            type="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+            }}
             placeholder="Your password"
-            required
           />
         </div>
         <div className="flex justify-end">
@@ -77,16 +76,16 @@ export default function LoginPage() {
             Forgot your password?
           </Link>
         </div>
-        {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <Button
-          type="submit"
           className="w-full"
           variant="accent"
+          onClick={submit}
           disabled={busy || !email || !password}
         >
           {busy ? "Logging in..." : "Log in"}
         </Button>
-      </form>
+      </div>
 
       <p className="mt-6 text-center text-sm text-zinc-600">
         New to JockeyFinder?{" "}
