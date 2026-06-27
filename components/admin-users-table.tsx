@@ -22,6 +22,7 @@ export interface AdminUser {
   is_test: boolean | null;
   is_placeholder: boolean | null;
   suspended: boolean | null;
+  apprentice_claim: number | null;
   created_at: string | null;
 }
 
@@ -251,6 +252,21 @@ export function AdminUsersTable({ users }: { users: AdminUser[] }) {
                               {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                             </select>
                           </label>
+                          {u.role === "jockey" ? (
+                            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
+                              Claim (kg)
+                              <input
+                                name="apprentice_claim"
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                max="4"
+                                defaultValue={u.apprentice_claim ?? ""}
+                                placeholder="none"
+                                className="w-24 rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink outline-none focus:border-turf-500"
+                              />
+                            </label>
+                          ) : null}
                           <div className="flex items-center gap-2">
                             <button className="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-700">
                               Save changes

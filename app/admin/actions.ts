@@ -118,6 +118,7 @@ export async function editUser(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
   const role = String(formData.get("role") || "").trim();
+  const claimRaw = String(formData.get("apprentice_claim") || "").trim();
 
   const admin = createAdminClient();
   const update: Record<string, unknown> = {
@@ -127,6 +128,13 @@ export async function editUser(formData: FormData) {
   };
   if (["jockey", "trainer", "owner", "agent", "admin"].includes(role)) {
     update.role = role;
+  }
+  // Apprentice claim (manual downgrade — e.g. 3kg → 2kg as wins tally up). Blank
+  // clears it / marks no longer claiming.
+  if (formData.has("apprentice_claim")) {
+    const claim = claimRaw ? Number(claimRaw) : null;
+    update.apprentice_claim = claim;
+    update.apprentice = claim != null && claim > 0;
   }
   await admin.from("profiles").update(update).eq("id", id);
 
