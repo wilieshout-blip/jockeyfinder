@@ -26,14 +26,25 @@ export function RideVacancyButton({ meetingId }: { meetingId: string }) {
       className="space-y-2 rounded-xl border border-red-200 bg-red-50/60 p-3"
     >
       <input type="hidden" name="meeting_id" value={meetingId} />
-      <input
-        name="race_number"
-        type="number"
-        min="1"
-        max="14"
-        placeholder="Race # (optional)"
-        className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm"
-      />
+      <div className="flex gap-2">
+        <input
+          name="race_number"
+          type="number"
+          min="1"
+          max="14"
+          placeholder="Race # (optional)"
+          className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm"
+        />
+        <input
+          name="max_weight"
+          type="number"
+          step="0.5"
+          min="40"
+          max="75"
+          placeholder="Max kg (optional)"
+          className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm"
+        />
+      </div>
       <input
         name="note"
         placeholder="Short note (optional)"

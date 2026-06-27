@@ -181,6 +181,8 @@ export async function broadcastRideVacancy(formData: FormData) {
 
   const meetingId = String(formData.get("meeting_id") || "");
   const raceNumberRaw = String(formData.get("race_number") || "").trim();
+  const maxWeightRaw = String(formData.get("max_weight") || "").trim();
+  const maxWeight = maxWeightRaw ? Number(maxWeightRaw) : null;
   const note = String(formData.get("note") || "").trim() || null;
   if (!meetingId) redirect("/meetings");
 
@@ -213,11 +215,13 @@ export async function broadcastRideVacancy(formData: FormData) {
     if (targetIds.length > 0) {
       const { data: jockeys } = await admin
         .from("profiles")
-        .select("email, phone, full_name, role, verified, suspended, is_test")
+        .select("email, phone, full_name, role, verified, suspended, is_test, riding_weight")
         .in("id", targetIds);
       const raceText = raceNumberRaw ? `Race ${raceNumberRaw}` : null;
       for (const j of jockeys ?? []) {
         if (j.role !== "jockey" || !j.verified || j.suspended || j.is_test) continue;
+        // Optional weight cap: skip riders heavier than the limit (unknown weight passes).
+        if (maxWeight != null && j.riding_weight != null && j.riding_weight > maxWeight) continue;
         if (j.email) {
           await emailRideVacancy({
             to: j.email,
