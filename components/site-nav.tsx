@@ -13,6 +13,7 @@ const links = [
   { href: "/meetings", label: "Meetings" },
   { href: "/jockeys", label: "Jockeys" },
   { href: "/trainers", label: "Trainers" },
+  { href: "/features", label: "Features" },
 ];
 
 export function SiteNav() {
