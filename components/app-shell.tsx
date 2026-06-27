@@ -80,6 +80,18 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         }
   }
 
+  // Ride requests awaiting this user's response (jockey or trainer side).
+  let requestBadge = 0;
+  if (["jockey", "trainer"].includes(profile?.role ?? "")) {
+    const { count } = await supabase
+      .from("ride_requests")
+      .select("id", { count: "exact", head: true })
+      .or(`jockey_id.eq.${user.id},trainer_id.eq.${user.id}`)
+      .eq("status", "requested")
+      .neq("created_by", user.id);
+    requestBadge = count ?? 0;
+  }
+
   // Allow lapsed jockeys to still reach billing and profile so they can resubscribe.
   const h = await headers();
   const pathname = h.get("x-pathname") ?? "";
@@ -90,6 +102,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-surface min-h-screen">
       <AppNav
+        requestBadge={requestBadge}
         name={profile?.full_name || user.email || "Account"}
         role={profile?.role ?? "owner"}
         photoUrl={profile?.profile_photo_url ?? null}
