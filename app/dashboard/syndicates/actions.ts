@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailSyndicateUpdate } from "@/lib/email";
+import { recordNotifications } from "@/lib/notifications";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -141,8 +142,10 @@ export async function postSyndicateUpdate(formData: FormData) {
     .select("user_id, invite_email, profiles:profiles!user_id(email, first_name, email_notify_marketing, suspended, is_test)")
     .eq("group_id", groupId);
 
+  const notifyIds: string[] = [];
   for (const m of (members ?? []) as any[]) {
     const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+    if (m.user_id && !(p && (p.suspended || p.is_test))) notifyIds.push(m.user_id);
     const email = p?.email ?? m.invite_email ?? null;
     if (!email) continue;
     if (p && (p.suspended || p.is_test || p.email_notify_marketing === false)) continue;
@@ -153,6 +156,12 @@ export async function postSyndicateUpdate(formData: FormData) {
       body,
     });
   }
+  await recordNotifications(notifyIds, {
+    type: "syndicate_update",
+    title: `Update from ${group.name}`,
+    body: body.slice(0, 120),
+    href: "/dashboard/syndicates",
+  });
 
   revalidatePath("/dashboard/syndicates");
   redirect("/dashboard/syndicates");

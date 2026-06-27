@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail, formatMeetingDate, nzToday } from "@/lib/utils";
 import { emailStandDownAlert } from "@/lib/email";
+import { recordNotification, recordNotifications } from "@/lib/notifications";
 
 async function assertAdmin() {
   const supabase = await createClient();
@@ -109,7 +110,19 @@ export async function recordStandDown(formData: FormData) {
           reason,
         });
       }
+      await recordNotifications([...trainerIds], {
+        type: "stand_down",
+        title: `Rider stood down: ${jockeyName}`,
+        body: `${scopeText}${reason ? ` · ${reason}` : ""}`,
+        href: "/dashboard/requests",
+      });
     }
+    await recordNotification(jockeyId, {
+      type: "stand_down",
+      title: "You've been recorded as stood down",
+      body: scopeText,
+      href: "/dashboard",
+    });
   } catch (e) {
     console.error("stand-down alert failed:", e);
   }

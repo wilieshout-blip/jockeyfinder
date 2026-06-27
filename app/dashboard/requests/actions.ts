@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { emailOwnerStaking, emailNewRequest, emailRideVacancy } from "@/lib/email";
+import {
+  emailOwnerStaking,
+  emailNewRequest,
+  emailRideVacancy,
+  emailRequestAccepted,
+  emailRequestDeclined,
+  emailRideAssigned,
+} from "@/lib/email";
 import { sendSms } from "@/lib/sms";
 import { recordNotification } from "@/lib/notifications";
 import type { Profile, RideRequest } from "@/lib/types";
@@ -316,6 +323,58 @@ export async function updateRequestStatus(formData: FormData) {
 
   if (error) {
     redirect(`/dashboard/requests?error=${encodeURIComponent(error.message)}`);
+  }
+
+  // Close the loop: tell the relevant party about the response (email + bell).
+  try {
+    const admin = createAdminClient();
+    let track: string | null = null;
+    let meetingDate: string | null = null;
+    if (request.meeting_id) {
+      const { data: m } = await admin
+        .from("meetings")
+        .select("track, meeting_date")
+        .eq("id", request.meeting_id)
+        .maybeSingle();
+      track = m?.track ?? null;
+      meetingDate = m?.meeting_date ?? null;
+    }
+    const horse = request.horse_name;
+    const detail = [horse || null, track].filter(Boolean).join(" · ") || null;
+
+    if (next === "accepted" || next === "declined") {
+      const requesterId = request.created_by ?? request.trainer_id;
+      const { data: actor } = await admin.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      const actorName = actor?.full_name ?? "Someone";
+      const { data: req } = await admin.from("profiles").select("email").eq("id", requesterId).maybeSingle();
+      if (next === "accepted") {
+        if (req?.email) await emailRequestAccepted({ to: req.email, jockeyName: actorName, horseName: horse, track, meetingDate });
+        await recordNotification(requesterId, {
+          type: "request_accepted",
+          title: `${actorName} accepted your ride request`,
+          body: detail,
+          href: "/dashboard/requests",
+        });
+      } else {
+        if (req?.email) await emailRequestDeclined({ to: req.email, jockeyName: actorName, horseName: horse, track, meetingDate });
+        await recordNotification(requesterId, {
+          type: "request_declined",
+          title: "Your ride request was declined",
+          body: detail,
+          href: "/dashboard/requests",
+        });
+      }
+    } else if (next === "assigned") {
+      const [{ data: tp }, { data: jpr }] = await Promise.all([
+        admin.from("profiles").select("full_name").eq("id", request.trainer_id).maybeSingle(),
+        admin.from("profiles").select("email").eq("id", request.jockey_id).maybeSingle(),
+      ]);
+      if (jpr?.email) {
+        await emailRideAssigned({ to: jpr.email, trainerName: tp?.full_name ?? "The trainer", horseName: horse, track, meetingDate });
+      }
+    }
+  } catch (e) {
+    console.error("request response notify failed:", e);
   }
 
   if (next === "assigned") {
