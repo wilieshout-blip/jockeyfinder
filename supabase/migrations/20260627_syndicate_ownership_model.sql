@@ -51,8 +51,10 @@ returns boolean language sql security definer set search_path = public stable as
   select exists (select 1 from public.ownership_memberships where group_id = g and user_id = auth.uid());
 $$;
 
-revoke execute on function public.is_group_manager(uuid) from public, anon, authenticated;
-revoke execute on function public.is_group_member(uuid) from public, anon, authenticated;
+-- NOTE: these helpers are used in the RLS policies below, so the querying role
+-- needs EXECUTE at runtime. Keep them executable (do NOT revoke — that breaks RLS).
+grant execute on function public.is_group_manager(uuid) to anon, authenticated;
+grant execute on function public.is_group_member(uuid) to anon, authenticated;
 
 alter table public.ownership_groups enable row level security;
 alter table public.ownership_memberships enable row level security;
