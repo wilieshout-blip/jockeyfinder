@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ChatThreadClient } from "./chat";
+import { VoiceNotes } from "@/components/voice-notes";
+import type { VoiceNote } from "@/components/voice-notes";
 import { formatMeetingDate } from "@/lib/utils";
 import type { ChatThread, Meeting, Message } from "@/lib/types";
 
@@ -70,6 +72,27 @@ export default async function ThreadPage({
     horse = r?.horse_name ?? null;
   }
 
+  // Voice notes (private bucket → short-lived signed URLs).
+  const { data: vnRows } = await supabase
+    .from("voice_notes")
+    .select("id, kind, created_at, sender_id, duration_s, audio_path")
+    .eq("thread_id", thread.id)
+    .order("created_at", { ascending: true });
+  const voiceNotes: VoiceNote[] = [];
+  for (const n of vnRows ?? []) {
+    const { data: signed } = await supabase.storage
+      .from("voice-notes")
+      .createSignedUrl(n.audio_path as string, 3600);
+    voiceNotes.push({
+      id: n.id as string,
+      kind: n.kind as string,
+      created_at: n.created_at as string,
+      sender_id: (n.sender_id as string) ?? null,
+      duration_s: (n.duration_s as number) ?? null,
+      url: signed?.signedUrl ?? null,
+    });
+  }
+
   const others = memberIds
     .filter((id) => id !== user.id)
     .map((id) => senders[id]?.name ?? "Member");
@@ -103,6 +126,13 @@ export default async function ThreadPage({
         threadId={thread.id}
         meId={user.id}
         initialMessages={messages ?? []}
+        senders={senders}
+      />
+
+      <VoiceNotes
+        threadId={thread.id}
+        meId={user.id}
+        initialNotes={voiceNotes}
         senders={senders}
       />
     </div>
