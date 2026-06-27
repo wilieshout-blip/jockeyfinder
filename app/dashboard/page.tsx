@@ -608,6 +608,7 @@ export default async function DashboardPage() {
                 </p>
                 <div className="mt-4 space-y-2">
                   {[
+                    { href: "/dashboard/syndicates", title: "Manage syndicates", blurb: "Ownership groups, micro-owners and updates." },
                     { href: "/meetings", title: "Open race meetings", blurb: "Race cards, runners and attending riders." },
                     { href: "/trainers", title: "Find trainer details", blurb: "Stable contacts, regions and runners." },
                     { href: "/dashboard/messages", title: "Open messages", blurb: "Ride chats and stable conversations." },

@@ -220,6 +220,25 @@ export async function sendBroadcastEmail(to: string, subject: string, bodyHtml: 
   return sendEmail(to, subject, emailLayout(bodyHtml));
 }
 
+/** Email a syndicate member when their manager posts an update. */
+export async function emailSyndicateUpdate(opts: {
+  to: string;
+  firstName: string;
+  groupName: string;
+  body: string;
+}) {
+  return sendEmail(
+    opts.to,
+    `Update from ${opts.groupName}`,
+    emailLayout(`
+      <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827">${escapeHtml(opts.groupName)}</h2>
+      <p style="margin:0 0 14px;font-size:15px;color:#374151">Hi ${escapeHtml(opts.firstName)}, your syndicate manager posted an update:</p>
+      <blockquote style="margin:0;padding:12px 16px;border-left:3px solid #16a34a;background:#f0fdf4;border-radius:8px;font-size:15px;color:#374151;white-space:pre-wrap">${escapeHtml(opts.body)}</blockquote>
+      ${cta("Open JockeyFinder →", `${SITE_URL}/dashboard`)}
+    `)
+  );
+}
+
 /** Notify the site admin when a new user signs up. */
 export async function emailNewSignup(opts: {
   name?: string | null;
