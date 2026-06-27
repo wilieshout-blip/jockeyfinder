@@ -226,7 +226,7 @@ export default async function MeetingDetailPage({
     const raceIdMap = new Map(racesFromDb.map((r) => [r.race_number, r.id]));
     const { data } = await supabase
       .from("race_entries")
-      .select("id, race_number, horse_number, horse_name, jockey_name, trainer_name, barrier, weight, rating, sire, dam, age_sex, form, nztr_horse_id")
+      .select("id, race_number, horse_number, horse_name, jockey_name, trainer_name, barrier, weight, rating, sire, dam, age_sex, form, nztr_horse_id, silk_description")
       .eq("nztr_day_id", meeting.nztr_day_id)
       .order("race_number", { ascending: true })
       .order("barrier", { ascending: true, nullsFirst: false })

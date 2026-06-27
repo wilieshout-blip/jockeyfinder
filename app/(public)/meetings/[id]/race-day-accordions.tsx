@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
+import { SilkPreview } from "@/components/silk-preview";
 import { requestRideFromRaceCard } from "./actions";
 
 export interface RaceEntryData {
@@ -20,6 +21,7 @@ export interface RaceEntryData {
   age_sex: string | null;
   form: string | null;
   nztr_horse_id: string | null;
+  silk_description?: string | null;
 }
 
 export interface RaceData {
@@ -394,6 +396,9 @@ export function RaceDayAccordions({
                         <div key={entry.id} className="px-4 py-3">
                           <div className="grid gap-3 sm:grid-cols-[auto_1fr_auto]">
                             <div className="flex items-center gap-2">
+                              {entry.silk_description ? (
+                                <SilkPreview description={entry.silk_description} size={28} />
+                              ) : null}
                               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-mist text-xs font-bold text-ink">
                                 {entry.horse_number ?? "-"}
                               </span>
