@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { emailOwnerStaking } from "@/lib/email";
+import { emailOwnerStaking, emailNewRequest } from "@/lib/email";
+import { sendSms } from "@/lib/sms";
 import type { Profile, RideRequest } from "@/lib/types";
 
 export interface RaceOption {
@@ -78,6 +79,27 @@ export async function createRideRequest(formData: FormData) {
     redirect("/dashboard/requests/new?error=missing");
   }
 
+  // Agent concurrency guard: don't let an agent book two of their own riders on
+  // the same horse. (Competing options on *different* horses in a race are fine.)
+  if (me.role === "agent" && horseName) {
+    const { data: clash } = await supabase
+      .from("ride_requests")
+      .select("id")
+      .eq("created_by", user.id)
+      .eq("meeting_id", meetingId)
+      .eq("horse_name", horseName)
+      .neq("jockey_id", jockeyId)
+      .not("status", "eq", "cancelled")
+      .limit(1);
+    if (clash && clash.length > 0) {
+      redirect(
+        `/dashboard/requests/new?error=${encodeURIComponent(
+          "You already have another of your riders requested for this horse."
+        )}`
+      );
+    }
+  }
+
   const { error } = await supabase.from("ride_requests").insert({
     meeting_id: meetingId,
     race_id: raceId || null,
@@ -94,6 +116,42 @@ export async function createRideRequest(formData: FormData) {
     redirect(
       `/dashboard/requests/new?error=${encodeURIComponent(error.message)}`
     );
+  }
+
+  // Notify the counterpart that a request is waiting (email + optional SMS).
+  // Non-blocking — never fail the request because a notification didn't send.
+  try {
+    const admin = createAdminClient();
+    const { data: recipient } = await admin
+      .from("profiles")
+      .select("email, phone, full_name")
+      .eq("id", counterpart)
+      .maybeSingle();
+    const { data: mtg } = await admin
+      .from("meetings")
+      .select("track, meeting_date")
+      .eq("id", meetingId)
+      .maybeSingle();
+    const track = mtg?.track ?? null;
+    const meetingDate = mtg?.meeting_date ?? null;
+    const senderName = me.full_name ?? "A connection";
+    if (recipient?.email) {
+      await emailNewRequest({
+        to: recipient.email,
+        senderName,
+        horseName: horseName || null,
+        track,
+        meetingDate,
+      });
+    }
+    if (recipient?.phone) {
+      await sendSms(
+        recipient.phone,
+        `JockeyFinder: ${senderName} sent you a ride request${horseName ? ` for ${horseName}` : ""}${track ? ` at ${track}` : ""}. Open the app to respond.`
+      );
+    }
+  } catch (e) {
+    console.error("ride request notify failed:", e);
   }
 
   revalidatePath("/dashboard/requests");

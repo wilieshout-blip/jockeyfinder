@@ -3,8 +3,23 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail, nzToday, formatMeetingDate } from "@/lib/utils";
+import { sameDayFeasibility, type Feasibility } from "@/lib/tracks";
 
 export const dynamic = "force-dynamic";
+
+const FEASIBILITY_ORDER: Record<Feasibility, number> = { infeasible: 3, tight: 2, unknown: 1, ok: 0 };
+
+/** Most-severe travel feasibility across all pairs of same-day tracks. */
+function worstFeasibility(tracks: string[]) {
+  let worst = sameDayFeasibility(tracks[0], tracks[1] ?? tracks[0]);
+  for (let i = 0; i < tracks.length; i++) {
+    for (let j = i + 1; j < tracks.length; j++) {
+      const f = sameDayFeasibility(tracks[i], tracks[j]);
+      if (FEASIBILITY_ORDER[f.level] > FEASIBILITY_ORDER[worst.level]) worst = f;
+    }
+  }
+  return worst;
+}
 
 export default async function OutlierMonitorPage() {
   const supabase = await createClient();
@@ -56,14 +71,31 @@ export default async function OutlierMonitorPage() {
         </h2>
         {clashes.length > 0 ? (
           <div className="space-y-2">
-            {clashes.map((c, i) => (
-              <div key={i} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <p className="font-semibold text-ink">{c.name}</p>
-                <p className="text-sm text-amber-800">
-                  Marked at {c.tracks.size} meetings on {formatMeetingDate(c.date)}: {[...c.tracks].join(", ")} — a rider can only be at one.
-                </p>
-              </div>
-            ))}
+            {clashes.map((c, i) => {
+              const feas = worstFeasibility([...c.tracks]);
+              const tone =
+                feas.level === "infeasible"
+                  ? "border-red-200 bg-red-50 text-red-800"
+                  : feas.level === "tight"
+                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-600";
+              return (
+                <div key={i} className={`rounded-2xl border p-4 ${tone}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-ink">{c.name}</p>
+                    {feas.level === "infeasible" ? (
+                      <span className="rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-800">Likely infeasible</span>
+                    ) : feas.level === "tight" ? (
+                      <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">Tight</span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 text-sm">
+                    Marked at {c.tracks.size} meetings on {formatMeetingDate(c.date)}: {[...c.tracks].join(", ")}.
+                  </p>
+                  <p className="mt-0.5 text-xs opacity-80">{feas.note}</p>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="rounded-2xl border border-dashed border-line bg-white px-4 py-6 text-center text-sm text-zinc-400">
