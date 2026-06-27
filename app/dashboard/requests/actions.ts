@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { emailOwnerStaking } from "@/lib/email";
 import type { Profile, RideRequest } from "@/lib/types";
 
 export interface RaceOption {
@@ -189,6 +191,83 @@ export async function updateRequestStatus(formData: FormData) {
           }. Use this chat for gear, transport, and race day plans.`,
         });
       }
+    }
+  }
+
+  // Staking/nomination alert: email the horse's owners + syndicate micro-owners
+  // that a jockey has been booked. Non-blocking — never fail the assignment.
+  if (next === "assigned" && request.horse_name) {
+    try {
+      const admin = createAdminClient();
+      const { data: horse } = await admin
+        .from("horses")
+        .select("id")
+        .ilike("name", request.horse_name)
+        .maybeSingle();
+      if (horse?.id) {
+        const { data: jp } = await admin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", request.jockey_id)
+          .maybeSingle();
+        const jockeyName = jp?.full_name ?? "A jockey";
+
+        let track: string | null = null;
+        let meetingDate: string | null = null;
+        if (request.meeting_id) {
+          const { data: mtg } = await admin
+            .from("meetings")
+            .select("track, meeting_date")
+            .eq("id", request.meeting_id)
+            .maybeSingle();
+          track = mtg?.track ?? null;
+          meetingDate = mtg?.meeting_date ?? null;
+        }
+
+        const recipients = new Map<string, string>(); // email -> first name
+        const eligible = (p: any) =>
+          p && p.email && !p.suspended && !p.is_test && p.email_notify_marketing !== false;
+
+        const { data: links } = await admin
+          .from("owner_horse_links")
+          .select("profiles:profiles!owner_id(email, first_name, email_notify_marketing, suspended, is_test)")
+          .eq("horse_id", horse.id)
+          .eq("status", "confirmed");
+        for (const l of (links ?? []) as any[]) {
+          const p = Array.isArray(l.profiles) ? l.profiles[0] : l.profiles;
+          if (eligible(p)) recipients.set(p.email, p.first_name ?? "there");
+        }
+
+        const { data: groups } = await admin
+          .from("group_horses")
+          .select("group_id")
+          .eq("horse_id", horse.id);
+        const groupIds = (groups ?? []).map((g: any) => g.group_id);
+        if (groupIds.length > 0) {
+          const { data: mem } = await admin
+            .from("ownership_memberships")
+            .select("invite_email, profiles:profiles!user_id(email, first_name, email_notify_marketing, suspended, is_test)")
+            .in("group_id", groupIds);
+          for (const m of (mem ?? []) as any[]) {
+            const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+            const email = p?.email ?? m.invite_email;
+            if (email && (!p || eligible(p))) recipients.set(email, p?.first_name ?? "there");
+          }
+        }
+
+        for (const [email, firstName] of recipients) {
+          await emailOwnerStaking({
+            to: email,
+            firstName,
+            jockeyName,
+            horseName: request.horse_name,
+            track,
+            meetingDate,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("owner staking alert failed:", e);
     }
   }
 

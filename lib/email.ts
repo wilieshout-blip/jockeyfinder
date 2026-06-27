@@ -239,6 +239,30 @@ export async function emailSyndicateUpdate(opts: {
   );
 }
 
+/** Notify an owner / syndicate micro-owner when a jockey is assigned to their horse. */
+export async function emailOwnerStaking(opts: {
+  to: string;
+  firstName: string;
+  jockeyName: string;
+  horseName: string;
+  track?: string | null;
+  meetingDate?: string | null;
+}) {
+  const where = [opts.track, opts.meetingDate].filter(Boolean).join(" · ");
+  return sendEmail(
+    opts.to,
+    `${opts.jockeyName} is booked on ${opts.horseName}`,
+    emailLayout(`
+      <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827">Jockey booked 🏇</h2>
+      <p style="margin:0;font-size:15px;color:#374151">
+        Hi ${escapeHtml(opts.firstName)}, <strong>${escapeHtml(opts.jockeyName)}</strong> has been assigned to ride
+        <strong>${escapeHtml(opts.horseName)}</strong>${where ? ` at <strong>${escapeHtml(where)}</strong>` : ""}.
+      </p>
+      ${cta("View on JockeyFinder →", `${SITE_URL}/dashboard`)}
+    `)
+  );
+}
+
 /** Notify the site admin when a new user signs up. */
 export async function emailNewSignup(opts: {
   name?: string | null;
