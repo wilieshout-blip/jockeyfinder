@@ -263,6 +263,33 @@ export async function emailOwnerStaking(opts: {
   );
 }
 
+/** S.O.S. — tell an attending jockey about a last-minute ride vacancy. */
+export async function emailRideVacancy(opts: {
+  to: string;
+  jockeyName: string;
+  trainerName: string;
+  meetingTrack: string;
+  meetingDate?: string | null;
+  raceText?: string | null;
+  note?: string | null;
+  meetingId: string;
+}) {
+  return sendEmail(
+    opts.to,
+    `Ride vacancy at ${opts.meetingTrack}${opts.raceText ? ` — ${opts.raceText}` : ""}`,
+    emailLayout(`
+      <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827">Ride available 🏇</h2>
+      <p style="margin:0 0 12px;font-size:15px;color:#374151">
+        Hi ${escapeHtml(opts.jockeyName)}, <strong>${escapeHtml(opts.trainerName)}</strong> has a last-minute ride
+        vacancy at <strong>${escapeHtml(opts.meetingTrack)}</strong>${opts.raceText ? ` (${escapeHtml(opts.raceText)})` : ""} — and you're marked as attending.
+        ${opts.note ? `<br><br>“${escapeHtml(opts.note)}”` : ""}
+      </p>
+      ${cta("View the meeting →", `${SITE_URL}/meetings/${opts.meetingId}`)}
+      <p style="margin:16px 0 0;font-size:12px;color:#9ca3af">You're getting this because you marked attendance at this meeting.</p>
+    `)
+  );
+}
+
 /** Alert a trainer that a jockey they've booked has been stood down. */
 export async function emailStandDownAlert(opts: {
   to: string;

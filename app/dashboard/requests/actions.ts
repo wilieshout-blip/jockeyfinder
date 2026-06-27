@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { emailOwnerStaking, emailNewRequest } from "@/lib/email";
+import { emailOwnerStaking, emailNewRequest, emailRideVacancy } from "@/lib/email";
 import { sendSms } from "@/lib/sms";
 import type { Profile, RideRequest } from "@/lib/types";
 
@@ -156,6 +156,93 @@ export async function createRideRequest(formData: FormData) {
 
   revalidatePath("/dashboard/requests");
   redirect("/dashboard/requests?created=1");
+}
+
+/**
+ * S.O.S. ride-vacancy beacon: a verified trainer broadcasts a last-minute
+ * vacancy to verified jockeys who marked attendance at the meeting and aren't
+ * already booked there. Email + optional SMS.
+ */
+export async function broadcastRideVacancy(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("role, verified, full_name")
+    .eq("id", user.id)
+    .single<Profile>();
+  if (!me || me.role !== "trainer" || !me.verified) {
+    redirect("/dashboard?error=verify_first");
+  }
+
+  const meetingId = String(formData.get("meeting_id") || "");
+  const raceNumberRaw = String(formData.get("race_number") || "").trim();
+  const note = String(formData.get("note") || "").trim() || null;
+  if (!meetingId) redirect("/meetings");
+
+  const admin = createAdminClient();
+  const { data: meeting } = await admin
+    .from("meetings")
+    .select("track, meeting_date")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (!meeting) redirect("/meetings");
+
+  const { data: att } = await admin
+    .from("meeting_attendance")
+    .select("user_id")
+    .eq("meeting_id", meetingId)
+    .eq("attending", true);
+  const attIds = (att ?? []).map((a) => a.user_id);
+
+  let sent = 0;
+  if (attIds.length > 0) {
+    const { data: assigned } = await admin
+      .from("ride_requests")
+      .select("jockey_id")
+      .eq("meeting_id", meetingId)
+      .eq("status", "assigned")
+      .in("jockey_id", attIds);
+    const assignedSet = new Set((assigned ?? []).map((r) => r.jockey_id));
+    const targetIds = attIds.filter((id) => !assignedSet.has(id));
+
+    if (targetIds.length > 0) {
+      const { data: jockeys } = await admin
+        .from("profiles")
+        .select("email, phone, full_name, role, verified, suspended, is_test")
+        .in("id", targetIds);
+      const raceText = raceNumberRaw ? `Race ${raceNumberRaw}` : null;
+      for (const j of jockeys ?? []) {
+        if (j.role !== "jockey" || !j.verified || j.suspended || j.is_test) continue;
+        if (j.email) {
+          await emailRideVacancy({
+            to: j.email,
+            jockeyName: j.full_name ?? "there",
+            trainerName: me.full_name ?? "A trainer",
+            meetingTrack: meeting.track,
+            meetingDate: meeting.meeting_date,
+            raceText,
+            note,
+            meetingId,
+          });
+        }
+        if (j.phone) {
+          await sendSms(
+            j.phone,
+            `JockeyFinder: ${me.full_name ?? "A trainer"} has a ride vacancy at ${meeting.track}${raceText ? ` ${raceText}` : ""}. Open the app.`
+          );
+        }
+        sent += 1;
+      }
+    }
+  }
+
+  revalidatePath(`/meetings/${meetingId}`);
+  redirect(`/meetings/${meetingId}?sos=${sent}`);
 }
 
 const ALLOWED: Record<string, string[]> = {

@@ -12,6 +12,7 @@ import type { PublicAttendance } from "@/lib/types";
 import { RaceDayAccordions } from "./race-day-accordions";
 import type { RaceEntryData, RaceData } from "./race-day-accordions";
 import { AttendanceToggle } from "./attendance-toggle";
+import { RideVacancyButton } from "@/components/ride-vacancy-button";
 
 interface TrackCondition {
   label: string;
@@ -60,14 +61,18 @@ function positionStyle(pos: number) {
 
 export default async function MeetingDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ sos?: string }>;
 }) {
   const { id } = await params;
+  const { sos } = await searchParams;
   const supabase = createPublicClient();
 
   let userRole: "jockey" | "agent" | "trainer" | "owner" | null = null;
   let userId: string | null = null;
+  let userVerified = false;
   let sessionClient: Awaited<ReturnType<typeof createClient>> | null = null;
 
   if (await hasSupabaseSessionCookie()) {
@@ -79,12 +84,13 @@ export default async function MeetingDetailPage({
     if (user) {
       const { data: profile } = await sessionClient
         .from("profiles")
-        .select("id, role")
+        .select("id, role, verified")
         .eq("id", user.id)
         .single();
       if (profile) {
         userRole = profile.role as typeof userRole;
         userId = profile.id;
+        userVerified = profile.verified ?? false;
       }
     }
   }
@@ -394,6 +400,14 @@ export default async function MeetingDetailPage({
         <div className="space-y-4">
           {userRole === "jockey" && !isPast ? (
             <AttendanceToggle meetingId={meeting.id} initialAttending={myAttending} />
+          ) : null}
+          {userRole === "trainer" && userVerified && !isPast ? (
+            <RideVacancyButton meetingId={meeting.id} />
+          ) : null}
+          {sos ? (
+            <p className="rounded-xl border border-turf-200 bg-turf-50 px-3 py-2 text-xs font-medium text-turf-700">
+              Vacancy sent to {sos} attending jockey{sos === "1" ? "" : "s"}.
+            </p>
           ) : null}
           <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Riding here · {ridingHere.length}</h2>
           {ridingHere.length > 0 ? (
