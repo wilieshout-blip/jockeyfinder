@@ -124,6 +124,9 @@ export default async function JockeyProfilePage({
     viewer = p;
   }
   const canRequest = viewer?.role === "trainer" && viewer.verified;
+  // Owner privacy firewall: owners route contact through the trainer/manager, so
+  // never show them a jockey's personal phone (even if the jockey shows it).
+  const showJockeyPhone = !!(jockey.show_phone && jockey.phone && viewer?.role !== "owner");
   const claim = formatClaim(jockey.apprentice_claim);
 
   return (
@@ -205,13 +208,13 @@ export default async function JockeyProfilePage({
         </Card>
       </div>
 
-      {(jockey.show_phone && jockey.phone) || agent ? (
+      {showJockeyPhone || agent ? (
         <div className="mt-4">
           <Card>
             <CardBody>
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Contact</h2>
               <dl className="space-y-3 text-sm">
-                {jockey.show_phone && jockey.phone ? (
+                {showJockeyPhone ? (
                   <div className="flex items-center justify-between gap-4">
                     <dt className="text-zinc-500">Phone</dt>
                     <dd className="font-medium text-ink">
