@@ -12,6 +12,8 @@ import { HorsePreloadWizard } from "@/components/horse-preload-wizard";
 import { TrainerHorses } from "@/components/trainer-horses";
 import { PreferredRiders } from "@/components/preferred-riders";
 import type { PreferredJockey } from "@/components/preferred-riders";
+import { BlackBook } from "@/components/black-book";
+import type { BlackBookEntry } from "@/components/black-book";
 import { OwnerHorseClaim } from "@/components/owner-horse-claim";
 import { PageHeader } from "@/components/premium";
 import {
@@ -207,6 +209,30 @@ export default async function DashboardPage() {
             apprentice_claim: j.apprentice_claim,
           };
         });
+    }
+  }
+
+  // Jockey / agent: black-book horses + which are entered to race soon.
+  let blackBook: BlackBookEntry[] = [];
+  let blackBookNominations: any[] = [];
+  if (profile.role === "jockey" || profile.role === "agent") {
+    const { data: bb } = await supabase
+      .from("black_book")
+      .select("id, horse_id, horse_name")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    blackBook = (bb ?? []) as BlackBookEntry[];
+    const names = blackBook.map((b) => b.horse_name);
+    if (names.length > 0) {
+      const { data: noms } = await supabase
+        .from("race_entries")
+        .select("id, horse_name, race_number, jockey_name, meetings!inner(id, meeting_date, track)")
+        .in("horse_name", names)
+        .gte("meetings.meeting_date", nzToday())
+        .limit(40);
+      blackBookNominations = (noms ?? [])
+        .sort((a: any, b: any) => (a.meetings?.meeting_date ?? "").localeCompare(b.meetings?.meeting_date ?? ""))
+        .slice(0, 10);
     }
   }
 
@@ -461,6 +487,29 @@ export default async function DashboardPage() {
               </EmptyState>
             )}
           </section>
+
+          <section className="space-y-3">
+            <BlackBook userId={profile.id} initialEntries={blackBook} />
+            {blackBookNominations.length > 0 ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Black-book horses racing soon</p>
+                <div className="space-y-2">
+                  {blackBookNominations.map((n: any) => {
+                    const m = n.meetings;
+                    return (
+                      <Link key={n.id} href={m?.id ? `/meetings/${m.id}` : "/meetings"} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3 py-2.5 transition-colors hover:border-turf-200">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-ink">{n.horse_name}</p>
+                          <p className="truncate text-xs text-zinc-500">{m?.track}{m?.meeting_date ? " · " + formatMeetingDate(m.meeting_date) : ""}{n.race_number ? " · R" + n.race_number : ""}{n.jockey_name ? " · " + n.jockey_name : ""}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700">View</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </section>
         </>
       ) : null}
 
@@ -713,6 +762,7 @@ export default async function DashboardPage() {
       ) : null}
 
       {profile.role === "agent" ? (
+        <>
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
@@ -753,6 +803,29 @@ export default async function DashboardPage() {
             </EmptyState>
           )}
         </section>
+        <section className="mt-6 space-y-3">
+          <BlackBook userId={profile.id} initialEntries={blackBook} />
+          {blackBookNominations.length > 0 ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Black-book horses racing soon</p>
+              <div className="space-y-2">
+                {blackBookNominations.map((n: any) => {
+                  const m = n.meetings;
+                  return (
+                    <Link key={n.id} href={m?.id ? `/meetings/${m.id}` : "/meetings"} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3 py-2.5 transition-colors hover:border-turf-200">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">{n.horse_name}</p>
+                        <p className="truncate text-xs text-zinc-500">{m?.track}{m?.meeting_date ? " · " + formatMeetingDate(m.meeting_date) : ""}{n.race_number ? " · R" + n.race_number : ""}{n.jockey_name ? " · " + n.jockey_name : ""}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700">View</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </section>
+        </>
       ) : null}
 
       <section>
