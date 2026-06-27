@@ -265,6 +265,33 @@ export default async function MeetingDetailPage({
     }
   }
 
+  // Gap Finder: a trainer's booked rider is freed up when the horse they were
+  // booked on is scratched — surface them so the trainer can re-book elsewhere.
+  let freedRiders: { jockey: string; horse: string; race: number | null }[] = [];
+  if (sessionClient && userId && userRole === "trainer" && meeting.nztr_day_id && !isPast) {
+    const { data: scratched } = await supabase
+      .from("race_entries")
+      .select("horse_name")
+      .eq("nztr_day_id", meeting.nztr_day_id)
+      .eq("scratched", true);
+    const scratchedNames = (scratched ?? [])
+      .map((s) => s.horse_name)
+      .filter((n): n is string => !!n);
+    if (scratchedNames.length > 0) {
+      const { data: reqs } = await sessionClient
+        .from("ride_requests")
+        .select("horse_name, race_number, profiles:profiles!jockey_id(full_name)")
+        .eq("meeting_id", meeting.id)
+        .in("status", ["assigned", "accepted"])
+        .in("horse_name", scratchedNames);
+      freedRiders = (reqs ?? []).map((r: any) => ({
+        jockey: (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles)?.full_name ?? "Your rider",
+        horse: r.horse_name,
+        race: r.race_number ?? null,
+      }));
+    }
+  }
+
   const raceDataList: RaceData[] = racesFromDb.map((r) => ({
     race_number: r.race_number,
     name: r.name,
@@ -408,6 +435,19 @@ export default async function MeetingDetailPage({
             <p className="rounded-xl border border-turf-200 bg-turf-50 px-3 py-2 text-xs font-medium text-turf-700">
               Vacancy sent to {sos} attending jockey{sos === "1" ? "" : "s"}.
             </p>
+          ) : null}
+          {freedRiders.length > 0 ? (
+            <div className="rounded-xl border border-turf-200 bg-turf-50/60 p-3">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-turf-700">Riders freed up</p>
+              <ul className="space-y-1">
+                {freedRiders.map((f, i) => (
+                  <li key={i} className="text-xs text-zinc-600">
+                    <span className="font-medium text-ink">{f.jockey}</span> — was on {f.horse}
+                    {f.race ? ` (R${f.race})` : ""}, now scratched.
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
           <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Riding here · {ridingHere.length}</h2>
           {ridingHere.length > 0 ? (
