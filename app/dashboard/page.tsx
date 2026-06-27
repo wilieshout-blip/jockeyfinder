@@ -14,6 +14,8 @@ import { PreferredRiders } from "@/components/preferred-riders";
 import type { PreferredJockey } from "@/components/preferred-riders";
 import { BlackBook } from "@/components/black-book";
 import type { BlackBookEntry } from "@/components/black-book";
+import { StableTeam } from "@/components/stable-team";
+import type { StableMember } from "@/components/stable-team";
 import { OwnerHorseClaim } from "@/components/owner-horse-claim";
 import { PageHeader } from "@/components/premium";
 import {
@@ -210,6 +212,17 @@ export default async function DashboardPage() {
           };
         });
     }
+  }
+
+  // Trainer: stable team (assistant trainers / foremen).
+  let stableMembers: StableMember[] = [];
+  if (profile.role === "trainer") {
+    const { data } = await supabase
+      .from("stable_members")
+      .select("id, role, invite_email, member_id, profiles:profiles!member_id(full_name, email)")
+      .eq("head_id", user.id)
+      .order("created_at", { ascending: true });
+    stableMembers = (data ?? []) as unknown as StableMember[];
   }
 
   // Jockey / agent: black-book horses + which are entered to race soon.
@@ -614,6 +627,8 @@ export default async function DashboardPage() {
           </section>
 
           <PreferredRiders trainerId={profile.id} initialPreferred={preferredRiders} />
+
+          <StableTeam members={stableMembers} />
 
           <TrainerHorses initialLinks={trainerHorseLinks} role="trainer" />
         </>
