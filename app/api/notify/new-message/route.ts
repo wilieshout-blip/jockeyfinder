@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailNewMessage } from "@/lib/email";
+import { recordNotifications } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,18 @@ export async function POST(req: Request) {
     .select("id, email, email_notify_messages, is_test, is_placeholder, suspended")
     .in("id", recipientIds);
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+  // In-app bell notification for every (real) recipient — not throttled.
+  const notifyIds = recipientIds.filter((id) => {
+    const p = profileById.get(id);
+    return p && !p.is_test && !p.is_placeholder && !p.suspended;
+  });
+  await recordNotifications(notifyIds, {
+    type: "message",
+    title: `New message from ${senderName}`,
+    body: (message.body ?? "").slice(0, 120),
+    href: `/dashboard/messages/${message.thread_id}`,
+  });
 
   const now = Date.now();
   let sent = 0;

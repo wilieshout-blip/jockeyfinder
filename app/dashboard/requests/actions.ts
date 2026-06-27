@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailOwnerStaking, emailNewRequest, emailRideVacancy } from "@/lib/email";
 import { sendSms } from "@/lib/sms";
+import { recordNotification } from "@/lib/notifications";
 import type { Profile, RideRequest } from "@/lib/types";
 
 export interface RaceOption {
@@ -150,6 +151,12 @@ export async function createRideRequest(formData: FormData) {
         `JockeyFinder: ${senderName} sent you a ride request${horseName ? ` for ${horseName}` : ""}${track ? ` at ${track}` : ""}. Open the app to respond.`
       );
     }
+    await recordNotification(counterpart, {
+      type: "ride_request",
+      title: `Ride request from ${senderName}`,
+      body: [horseName || null, track].filter(Boolean).join(" · ") || null,
+      href: "/dashboard/requests",
+    });
   } catch (e) {
     console.error("ride request notify failed:", e);
   }
@@ -215,7 +222,7 @@ export async function broadcastRideVacancy(formData: FormData) {
     if (targetIds.length > 0) {
       const { data: jockeys } = await admin
         .from("profiles")
-        .select("email, phone, full_name, role, verified, suspended, is_test, riding_weight")
+        .select("id, email, phone, full_name, role, verified, suspended, is_test, riding_weight")
         .in("id", targetIds);
       const raceText = raceNumberRaw ? `Race ${raceNumberRaw}` : null;
       for (const j of jockeys ?? []) {
@@ -240,6 +247,12 @@ export async function broadcastRideVacancy(formData: FormData) {
             `JockeyFinder: ${me.full_name ?? "A trainer"} has a ride vacancy at ${meeting.track}${raceText ? ` ${raceText}` : ""}. Open the app.`
           );
         }
+        await recordNotification(j.id, {
+          type: "ride_vacancy",
+          title: `Ride vacancy at ${meeting.track}`,
+          body: `${me.full_name ?? "A trainer"} has a ride available${raceText ? ` (${raceText})` : ""}.`,
+          href: `/meetings/${meetingId}`,
+        });
         sent += 1;
       }
     }
@@ -341,6 +354,15 @@ export async function updateRequestStatus(formData: FormData) {
         });
       }
     }
+  }
+
+  if (next === "assigned" && request.jockey_id) {
+    await recordNotification(request.jockey_id, {
+      type: "ride_assigned",
+      title: "Ride confirmed",
+      body: request.horse_name ? `You've been booked on ${request.horse_name}` : "A trainer confirmed your ride",
+      href: "/dashboard/requests",
+    });
   }
 
   // Staking/nomination alert: email the horse's owners + syndicate micro-owners

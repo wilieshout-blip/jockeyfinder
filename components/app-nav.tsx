@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/logo";
 import { Avatar } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/types";
 
@@ -92,6 +93,7 @@ export function AppNav({
         </div>
 
         <div className="hidden items-center gap-3 lg:flex">
+          <NotificationBell />
           <div className="flex items-center gap-2.5">
             <Avatar src={photoUrl} name={name} size="sm" />
             <div className="leading-tight">
@@ -106,20 +108,23 @@ export function AppNav({
           </form>
         </div>
 
-        <button
-          className="p-2 text-zinc-300 hover:text-white lg:hidden"
-          onClick={() => setOpen(!open)}
-          aria-expanded={open}
-          aria-label="Toggle menu"
-        >
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-            {open ? (
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            ) : (
-              <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
-            )}
-          </svg>
-        </button>
+        <div className="flex items-center gap-1 lg:hidden">
+          <NotificationBell />
+          <button
+            className="p-2 text-zinc-300 hover:text-white"
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            aria-label="Toggle menu"
+          >
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+              {open ? (
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              ) : (
+                <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+              )}
+            </svg>
+          </button>
+        </div>
       </div>
 
       {open ? (
