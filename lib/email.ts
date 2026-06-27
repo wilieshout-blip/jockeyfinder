@@ -263,6 +263,30 @@ export async function emailOwnerStaking(opts: {
   );
 }
 
+/** Alert a trainer that a jockey they've booked has been stood down. */
+export async function emailStandDownAlert(opts: {
+  to: string;
+  trainerName: string;
+  jockeyName: string;
+  scopeText: string;
+  reason?: string | null;
+}) {
+  return sendEmail(
+    opts.to,
+    `Rider stood down: ${opts.jockeyName}`,
+    emailLayout(`
+      <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827">Rider stood down ⚠️</h2>
+      <p style="margin:0 0 12px;font-size:15px;color:#374151">
+        Hi ${escapeHtml(opts.trainerName)}, <strong>${escapeHtml(opts.jockeyName)}</strong> — who you have booked —
+        has been stood down for <strong>${escapeHtml(opts.scopeText)}</strong> and is unavailable to ride.
+        ${opts.reason ? `Reason: ${escapeHtml(opts.reason)}.` : ""}
+      </p>
+      <p style="margin:0;font-size:14px;color:#6b7280">Please arrange a replacement rider for the affected race(s).</p>
+      ${cta("Find another jockey →", `${SITE_URL}/jockeys`)}
+    `)
+  );
+}
+
 /** Notify the site admin when a new user signs up. */
 export async function emailNewSignup(opts: {
   name?: string | null;
