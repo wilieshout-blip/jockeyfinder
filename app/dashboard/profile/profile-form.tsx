@@ -248,7 +248,17 @@ export function ProfileForm({
           setBusy(true);
           setSaved(false);
           setError(null);
-      
+
+          // Riding-weight typo guard (hidden thresholds ~30-75kg): confirm before
+          // saving an implausible value rather than hard-blocking.
+          const wCheck = weight ? Number(weight) : null;
+          if (isJockey && wCheck !== null && (Number.isNaN(wCheck) || wCheck < 30 || wCheck > 75)) {
+            if (!window.confirm(`${weight}kg looks unusual for a riding weight. Save it anyway?`)) {
+              setBusy(false);
+              return;
+            }
+          }
+
           const updates: Record<string, unknown> = {
                   first_name: firstName.trim() || null,
                   last_name: lastName.trim() || null,

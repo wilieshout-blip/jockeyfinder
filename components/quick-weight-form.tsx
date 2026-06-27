@@ -31,10 +31,10 @@ export function QuickWeightForm({
 
   async function save(force = false) {
     const w = weight ? Number(weight) : null;
-    // Typo guard: plausible riding weights sit roughly 42-72kg. Anything outside
-    // that is almost certainly a mistype (e.g. 5, 545, 150). Ask before saving —
-    // don't show the thresholds, and don't hard-block.
-    if (w !== null && !force && (Number.isNaN(w) || w < 42 || w > 72)) {
+    // Typo guard: plausible riding weights sit between ~30 and ~75kg. Anything
+    // outside that is almost certainly a mistype (e.g. 5, 545, 150). Ask before
+    // saving — don't show the thresholds, and don't hard-block.
+    if (w !== null && !force && (Number.isNaN(w) || w < 30 || w > 75)) {
       setConfirm(`${weight}kg looks unusual for a riding weight. Is that right?`);
       setError(null);
       setSaved(false);
@@ -69,8 +69,8 @@ export function QuickWeightForm({
           id="qw-weight"
           type="number"
           step="0.5"
-          min="40"
-          max="90"
+          min="30"
+          max="100"
           inputMode="decimal"
           value={weight}
           onChange={(e) => setWeight(e.target.value)}
