@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
@@ -17,6 +17,7 @@ interface Notif {
 
 export function NotificationBell() {
   const supabase = useRef(createClient()).current;
+  const channelId = useId();
   const [items, setItems] = useState<Notif[]>([]);
   const [open, setOpen] = useState(false);
   const unread = items.filter((n) => !n.read_at).length;
@@ -32,7 +33,7 @@ export function NotificationBell() {
       if (mounted) setItems((data as Notif[]) ?? []);
     })();
     const ch = supabase
-      .channel("notif-bell")
+      .channel(`notif-bell-${channelId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications" },
@@ -43,7 +44,7 @@ export function NotificationBell() {
       mounted = false;
       supabase.removeChannel(ch);
     };
-  }, [supabase]);
+  }, [supabase, channelId]);
 
   async function markAllRead() {
     const ids = items.filter((n) => !n.read_at).map((n) => n.id);
