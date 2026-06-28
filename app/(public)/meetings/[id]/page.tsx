@@ -12,6 +12,7 @@ import type { PublicAttendance } from "@/lib/types";
 import { RaceDayAccordions } from "./race-day-accordions";
 import type { RaceEntryData, RaceData } from "./race-day-accordions";
 import { AttendanceToggle } from "./attendance-toggle";
+import { AgentAttendancePanel } from "./agent-attendance-panel";
 import { RideVacancyButton } from "@/components/ride-vacancy-button";
 
 interface TrackCondition {
@@ -125,6 +126,36 @@ export default async function MeetingDetailPage({
       .eq("user_id", userId)
       .maybeSingle();
     myAttending = myAtt?.attending ?? false;
+  }
+
+  // Agent: their managed riders + each rider's attendance for this meeting, so
+  // the agent can mark attendance on behalf (works for trials too, which have
+  // no race entries). RLS lets an approved agent read/write these rows.
+  let agentRiders: { id: string; name: string; attending: boolean }[] = [];
+  if (sessionClient && userId && userRole === "agent") {
+    const { data: links } = await sessionClient
+      .from("agent_jockeys")
+      .select("jockey_id, jockey:profiles!jockey_id(full_name)")
+      .eq("agent_id", userId);
+    const riderIds = (links ?? []).map((l: any) => l.jockey_id);
+    const attendingSet = new Set<string>();
+    if (riderIds.length > 0) {
+      const { data: atts } = await sessionClient
+        .from("meeting_attendance")
+        .select("user_id, attending")
+        .eq("meeting_id", meeting.id)
+        .in("user_id", riderIds);
+      for (const a of atts ?? []) {
+        if ((a as any).attending) attendingSet.add((a as any).user_id);
+      }
+    }
+    agentRiders = (links ?? [])
+      .map((l: any) => ({
+        id: l.jockey_id,
+        name: (Array.isArray(l.jockey) ? l.jockey[0] : l.jockey)?.full_name ?? "Rider",
+        attending: attendingSet.has(l.jockey_id),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   // Logged-in trainer's preferred-rider shortlist: starred and sorted to the top
@@ -427,6 +458,9 @@ export default async function MeetingDetailPage({
         <div className="space-y-4">
           {userRole === "jockey" && !isPast ? (
             <AttendanceToggle meetingId={meeting.id} initialAttending={myAttending} />
+          ) : null}
+          {userRole === "agent" && !isPast ? (
+            <AgentAttendancePanel meetingId={meeting.id} riders={agentRiders} />
           ) : null}
           {userRole === "trainer" && userVerified && !isPast ? (
             <RideVacancyButton meetingId={meeting.id} />

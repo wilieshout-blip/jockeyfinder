@@ -752,3 +752,13 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Horizontal scroll without a visible scrollbar (used by the app nav so a
+   crowded nav never overlaps the logo or account cluster). */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

@@ -9,8 +9,13 @@ interface RecentWin {
 }
 
 export interface JockeyStatsData {
-  wins: number;
-  places: number;
+  hasPremiership: boolean;
+  seasonWins: number;
+  seasonSeconds: number;
+  seasonThirds: number;
+  seasonStarts: number;
+  careerWins: number;
+  careerStarts: number;
   seasonLabel: string;
   recentWins: RecentWin[];
 }
@@ -32,16 +37,30 @@ function formatDate(iso: string): string {
 }
 
 export function JockeyStats({ stats }: { stats: JockeyStatsData }) {
-  const { wins, places, seasonLabel, recentWins } = stats;
-  const nonWinPlaces = places - wins;
+  const {
+    hasPremiership, seasonWins, seasonSeconds, seasonThirds, seasonStarts,
+    careerWins, careerStarts, seasonLabel, recentWins,
+  } = stats;
+  const places = seasonSeconds + seasonThirds;
+  const winPct = seasonStarts > 0 ? Math.round((seasonWins / seasonStarts) * 100) : 0;
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <StatBox value={wins} label="Wins" accent />
-        <StatBox value={nonWinPlaces} label="Places" />
-        <StatBox value={places} label="Top 3" />
+      <div className="grid grid-cols-4 gap-3">
+        <StatBox value={seasonWins} label="Wins" accent />
+        <StatBox value={places} label="Places" />
+        <StatBox value={seasonStarts} label="Rides" />
+        <StatBox value={seasonStarts > 0 ? `${winPct}%` : "—"} label="Win %" />
       </div>
-      <p className="text-center text-xs text-zinc-400">{seasonLabel} · top-3 finishes tracked from LoveRacing</p>
+      <p className="text-center text-xs text-zinc-400">
+        {seasonLabel} · stats from LoveRacing premierships
+        {hasPremiership && careerWins > 0 ? (
+          <>
+            {" · "}
+            <span className="font-semibold text-zinc-500">{careerWins}</span> wins from{" "}
+            {careerStarts} rides over the last 5 seasons
+          </>
+        ) : null}
+      </p>
       {recentWins.length > 0 ? (
         <div className="space-y-1.5">
           <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Recent wins</h3>
@@ -59,7 +78,7 @@ export function JockeyStats({ stats }: { stats: JockeyStatsData }) {
             </div>
           ))}
         </div>
-      ) : wins === 0 ? (
+      ) : seasonWins === 0 ? (
         <p className="text-center text-sm text-zinc-400">No wins recorded yet this season.</p>
       ) : null}
     </div>

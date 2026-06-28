@@ -67,7 +67,7 @@ export function AppNav({
 
   const linkClass = (href: string) =>
     cn(
-      "block border-b-2 px-2.5 py-5 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors",
+      "block border-b-2 px-2 py-5 text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors",
       pathname === href || (href !== "/dashboard" && pathname.startsWith(href))
         ? "border-gold-400 text-white"
         : "border-transparent text-zinc-500 hover:text-white"
@@ -75,15 +75,18 @@ export function AppNav({
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950 text-white shadow-[0_8px_30px_-18px_rgba(0,0,0,0.8)]">
-      <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-6">
-          <Logo href="/dashboard" dark />
-          <nav className="hidden items-center gap-1 lg:flex" aria-label="App">
+      <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-5">
+          <Logo href="/dashboard" dark className="shrink-0" />
+          <nav
+            className="no-scrollbar hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto lg:flex"
+            aria-label="App"
+          >
             {items.map((i) => (
               <Link
                 key={i.href}
                 href={i.href}
-                className={cn(linkClass(i.href), "flex items-center")}
+                className={cn(linkClass(i.href), "flex shrink-0 items-center whitespace-nowrap")}
               >
                 {i.label}
                 <NavBadge count={badges[i.href] ?? 0} />
@@ -92,7 +95,7 @@ export function AppNav({
           </nav>
         </div>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden shrink-0 items-center gap-3 lg:flex">
           <NotificationBell />
           <div className="flex items-center gap-2.5">
             <Avatar src={photoUrl} name={name} size="sm" />

@@ -2,7 +2,7 @@ export const revalidate = 900;
 
 import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
-import { nzToday, nzDatePlusDays } from "@/lib/utils";
+import { nzToday, nzDatePlusDays, registryKey } from "@/lib/utils";
 import { JockeyDirectory } from "./jockey-directory";
 import type { DirectoryJockey, JockeyStat } from "./jockey-cards";
 import type { RegistryPerson } from "@/components/registry-people-list";
@@ -12,22 +12,6 @@ export const metadata: Metadata = {
   description:
     "Verified New Zealand jockeys with current riding weights, apprentice claims, and upcoming meeting attendance.",
 };
-
-// Registry names are "M K Hudson"; race-card names are "Mereana Hudson" — so
-// match on first-name initial + surname.
-function registryKey(name: string | null) {
-  if (!name) return "";
-  const clean = name
-    .replace(/^(Mr|Mrs|Ms|Miss|Dr|Prof|Rev)\.?\s+/i, "")
-    .replace(/\s*\([^)]*\)\s*$/, "")
-    .trim();
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "";
-  const initial = (parts[0][0] || "").toUpperCase();
-  const surname = parts[parts.length - 1].toLowerCase();
-  if (!initial || !surname) return "";
-  return initial + ":" + surname;
-}
 
 export default async function JockeysPage() {
   const supabase = createPublicClient();
@@ -63,10 +47,32 @@ export default async function JockeysPage() {
     agent_name: agentNameMap[j.id] ?? null,
   }));
 
-  const { data: statsRows } = await supabase
-    .from("jockey_season_stats")
-    .select("jockey_name, total_rides, wins, places, win_pct")
-    .returns<JockeyStat[]>();
+  // Authoritative season + career stats from the LoveRacing premiership feed
+  // (synced by scripts/sync-premierships.mjs). Matched to our jockeys by
+  // first-initial + surname, since the feed names them "E Nicholas (a)".
+  const { data: premRows } = await supabase
+    .from("nztr_jockey_stats")
+    .select(
+      "name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts, season_id"
+    );
+  const premByKey = new Map<string, any>();
+  for (const r of premRows ?? []) {
+    const key = registryKey((r as any).name);
+    if (key) premByKey.set(key, r);
+  }
+  const statsById: Record<string, JockeyStat> = {};
+  for (const j of jockeys) {
+    const r = premByKey.get(registryKey(j.full_name));
+    if (!r) continue;
+    statsById[j.id] = {
+      season_wins: r.season_wins,
+      season_seconds: r.season_seconds,
+      season_thirds: r.season_thirds,
+      season_starts: r.season_starts,
+      career_wins: r.career_wins,
+      career_starts: r.career_starts,
+    };
+  }
 
   const counts: Record<string, number> = {};
   const { data: upcoming } = await supabase
@@ -150,7 +156,7 @@ export default async function JockeysPage() {
 
       <JockeyDirectory
         jockeys={jockeys}
-        stats={statsRows ?? []}
+        statsById={statsById}
         counts={counts}
         registryPeople={registryWithStats}
       />

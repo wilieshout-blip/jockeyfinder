@@ -241,6 +241,7 @@ async function main() {
     .lt("meeting_date", today)
     .neq("meeting_type", "T")
     .not("nztr_day_id", "is", null)
+    .gt("nztr_day_id", 0) // skip TAB-only pseudo-id meetings — not on LoveRacing, can't be scraped
     .order("meeting_date", { ascending: false });
   query = ONE_DAY ? query.eq("nztr_day_id", Number(ONE_DAY)) : query.gte("meeting_date", cutoff);
 

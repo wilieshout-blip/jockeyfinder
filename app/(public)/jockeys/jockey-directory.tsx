@@ -46,12 +46,12 @@ function matchesRegion(text: string | null, island: string | null, region: strin
 
 interface Props {
       jockeys: DirectoryJockey[];
-        stats: JockeyStat[];
+        statsById: Record<string, JockeyStat>;
           counts: Record<string, number>;
             registryPeople: RegistryPerson[];
 }
 
-export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Props) {
+export function JockeyDirectory({ jockeys, statsById, counts, registryPeople }: Props) {
       const [island, setIsland] = useState<string | null>(null);
         const [region, setRegion] = useState<string | null>(null);
         const [query, setQuery] = useState("");
@@ -109,7 +109,7 @@ export function JockeyDirectory({ jockeys, stats, counts, registryPeople }: Prop
                               </div>
                               
                                     {filteredJockeys.length > 0 ? (
-                                                <JockeyCards jockeys={filteredJockeys} stats={stats} counts={counts} />
+                                                <JockeyCards jockeys={filteredJockeys} statsById={statsById} counts={counts} />
                                     ) : (
                                                 <div className="rounded-2xl border border-dashed border-line bg-white px-6 py-10 text-center">
                                                           <p className="text-sm text-zinc-500">

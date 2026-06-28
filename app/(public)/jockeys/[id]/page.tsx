@@ -11,7 +11,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { startDirectMessage } from "@/app/dashboard/messages/actions";
 import { Card, CardBody } from "@/components/ui/card";
 import { DateBlock } from "@/components/racing";
-import { formatClaim, formatWeight, nzToday } from "@/lib/utils";
+import { formatClaim, formatWeight, nzToday, registryKey } from "@/lib/utils";
 import { JockeyStats } from "@/components/jockey-stats";
 import type { JockeyStatsData } from "@/components/jockey-stats";
 import type { Meeting, Profile } from "@/lib/types";
@@ -69,7 +69,10 @@ export default async function JockeyProfilePage({
     upcoming = data ?? [];
   }
 
-  // Season stats
+  // Season + career stats: authoritative numbers come from the LoveRacing
+  // premiership feed (nztr_jockey_stats, matched by initial+surname). Recent
+  // wins (with dividends) still come from race_results, which we scrape for
+  // recent meetings.
   const seasonStart = currentSeasonStart();
   let statsData: JockeyStatsData | null = null;
   if (jockey.full_name) {
@@ -77,12 +80,22 @@ export default async function JockeyProfilePage({
       .select("horse_name, race_name, race_date, win_dividend, nztr_day_id")
       .eq("position", 1).ilike("jockey_name", jockey.full_name)
       .gte("race_date", seasonStart).order("race_date", { ascending: false }).limit(50);
-    const { data: placeRows } = await supabase.from("race_results")
-      .select("id").in("position", [1, 2, 3])
-      .ilike("jockey_name", jockey.full_name).gte("race_date", seasonStart);
+
+    // Match this jockey to a premiership row by first-initial + surname.
+    const { data: premRows } = await supabase
+      .from("nztr_jockey_stats")
+      .select("name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts");
+    const myKey = registryKey(jockey.full_name);
+    const prem = (premRows ?? []).find((r: any) => registryKey(r.name) === myKey) as any;
+
     statsData = {
-      wins: winRows?.length ?? 0,
-      places: placeRows?.length ?? 0,
+      hasPremiership: !!prem,
+      seasonWins: prem?.season_wins ?? 0,
+      seasonSeconds: prem?.season_seconds ?? 0,
+      seasonThirds: prem?.season_thirds ?? 0,
+      seasonStarts: prem?.season_starts ?? 0,
+      careerWins: prem?.career_wins ?? 0,
+      careerStarts: prem?.career_starts ?? 0,
       seasonLabel: seasonLabel(),
       recentWins: (winRows ?? []).slice(0, 5).map(r => ({
         horse_name: r.horse_name, race_name: r.race_name ?? "",

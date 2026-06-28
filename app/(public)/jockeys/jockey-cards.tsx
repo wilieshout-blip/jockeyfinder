@@ -12,6 +12,25 @@ function stripTitle(name: string | null): string | null {
   return name.replace(/^(Mr\.?|Mrs\.?|Ms\.?|Miss\.?|Dr\.?|Prof\.?|Rev\.?)\s+/i, "").trim();
 }
 
+/** A tappable phone row used in the expanded contact panel. */
+function PhoneRow({ label, phone }: { label: string; phone: string }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-line bg-white">
+      <a
+        href={`tel:${phone.replace(/\s/g, "")}`}
+        className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-mist/60"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <svg className="h-4 w-4 shrink-0 text-turf-600" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+        </svg>
+        <span className="w-20 shrink-0 text-xs text-zinc-400">{label}</span>
+        <span className="font-medium text-ink">{phone}</span>
+      </a>
+    </div>
+  );
+}
+
 export interface DirectoryJockey {
   id: string;
   full_name: string | null;
@@ -24,20 +43,22 @@ export interface DirectoryJockey {
   base_region: string | null;
   phone: string | null;
   agent_phone: string | null;
+  agent_name: string | null;
 }
 
 export interface JockeyStat {
-  jockey_name: string;
-  total_rides: number;
-  wins: number;
-  places: number;
-  win_pct: number;
+  season_wins: number;
+  season_seconds: number;
+  season_thirds: number;
+  season_starts: number;
+  career_wins: number;
+  career_starts: number;
 }
 
 interface Props {
   jockeys: DirectoryJockey[];
   counts: Record<string, number>;
-  stats: JockeyStat[];
+  statsById: Record<string, JockeyStat>;
 }
 
 const LICENCE_LABELS: Record<string, string> = {
@@ -45,12 +66,8 @@ const LICENCE_LABELS: Record<string, string> = {
   trial_jumpout_only: "Trial rider",
 };
 
-export function JockeyCards({ jockeys, counts, stats }: Props) {
+export function JockeyCards({ jockeys, counts, statsById }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
-
-  const statsByName = new Map(
-    stats.map((s) => [s.jockey_name.toLowerCase(), s])
-  );
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -60,11 +77,8 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
         const isOpen = openId === j.id;
         const detailsId = `jockey-card-${j.id}`;
         const displayName = stripTitle(j.full_name);
-        const stat = j.full_name
-          ? statsByName.get(j.full_name.toLowerCase())
-          : undefined;
-        const contactPhone = j.phone ?? j.agent_phone ?? null;
-        const contactLabel = j.phone ? "Mobile" : j.agent_phone ? "Via agent" : null;
+        const stat = statsById[j.id];
+        const hasContact = !!(j.phone || j.agent_name || j.agent_phone);
         const isTrialRider = j.licence_type === "trial_jumpout_only";
 
         return (
@@ -163,54 +177,82 @@ export function JockeyCards({ jockeys, counts, stats }: Props) {
                 )}
 
                 {/* Contact info */}
-                {contactPhone ? (
-                  <div className="overflow-hidden rounded-xl border border-line bg-white text-sm">
-                    <a
-                      href={`tel:${contactPhone.replace(/\s/g, "")}`}
-                      className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-mist/60"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg
-                        className="h-4 w-4 shrink-0 text-turf-600"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                      </svg>
-                      <span className="w-20 shrink-0 text-xs text-zinc-400">
-                        {contactLabel}
-                      </span>
-                      <span className="font-medium text-ink">{contactPhone}</span>
-                    </a>
+                {hasContact ? (
+                  <div className="space-y-2 text-sm">
+                    {j.phone ? (
+                      <PhoneRow label="Mobile" phone={j.phone} />
+                    ) : null}
+                    {j.agent_name || j.agent_phone ? (
+                      <div className="overflow-hidden rounded-xl border border-line bg-white">
+                        <div className="flex items-center gap-3 px-3 pt-2.5 text-xs text-zinc-400">
+                          <svg
+                            className="h-4 w-4 shrink-0 text-turf-600"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                          </svg>
+                          <span>Agent</span>
+                        </div>
+                        <div className="px-3 pb-2.5 pl-10">
+                          {j.agent_name ? (
+                            <p className="font-medium text-ink">{j.agent_name}</p>
+                          ) : null}
+                          {j.agent_phone ? (
+                            <a
+                              href={`tel:${j.agent_phone.replace(/\s/g, "")}`}
+                              className="text-turf-700 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {j.agent_phone}
+                            </a>
+                          ) : (
+                            <p className="text-xs text-zinc-400">No agent phone listed</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="text-sm text-zinc-400">No contact info listed.</p>
                 )}
 
-                {/* Season stats */}
+                {/* Season stats (this NZ racing season, from LoveRacing premierships) */}
                 {stat ? (
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    {[
-                      { label: "Rides", value: stat.total_rides },
-                      { label: "Wins", value: stat.wins },
-                      { label: "Places", value: stat.places },
-                      {
-                        label: "Win %",
-                        value: `${Number(stat.win_pct).toFixed(0)}%`,
-                      },
-                    ].map(({ label, value }) => (
-                      <div
-                        key={label}
-                        className="rounded-xl border border-line bg-white px-1 py-2.5"
-                      >
-                        <p className="text-[10px] uppercase tracking-wide text-zinc-400">
-                          {label}
-                        </p>
-                        <p className="mt-0.5 font-display text-sm font-semibold text-ink">
-                          {value}
-                        </p>
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      {[
+                        { label: "Rides", value: stat.season_starts },
+                        { label: "Wins", value: stat.season_wins },
+                        { label: "Places", value: stat.season_seconds + stat.season_thirds },
+                        {
+                          label: "Win %",
+                          value:
+                            stat.season_starts > 0
+                              ? `${Math.round((stat.season_wins / stat.season_starts) * 100)}%`
+                              : "—",
+                        },
+                      ].map(({ label, value }) => (
+                        <div
+                          key={label}
+                          className="rounded-xl border border-line bg-white px-1 py-2.5"
+                        >
+                          <p className="text-[10px] uppercase tracking-wide text-zinc-400">
+                            {label}
+                          </p>
+                          <p className="mt-0.5 font-display text-sm font-semibold text-ink">
+                            {value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {stat.career_wins > 0 ? (
+                      <p className="text-center text-[11px] text-zinc-400">
+                        Last 5 seasons:{" "}
+                        <span className="font-semibold text-zinc-500">{stat.career_wins}</span> wins
+                        from {stat.career_starts} rides
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
 

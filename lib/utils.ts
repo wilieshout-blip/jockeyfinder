@@ -39,6 +39,26 @@ export function formatWeight(weight?: number | null) {
   return `${Number(weight)}kg`;
 }
 
+/**
+ * Normalise a person's name to a "first-initial + surname" key so we can match
+ * across NZTR/LoveRacing sources that abbreviate differently — e.g. registry
+ * "M K Hudson", premiership "E Nicholas (a)", and profile "Elen Nicholas" all
+ * collapse to a stable key. Returns "" when no usable name.
+ */
+export function registryKey(name: string | null): string {
+  if (!name) return "";
+  const clean = name
+    .replace(/^(Mr|Mrs|Ms|Miss|Dr|Prof|Rev)\.?\s+/i, "")
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  const initial = (parts[0][0] || "").toUpperCase();
+  const surname = parts[parts.length - 1].toLowerCase();
+  if (!initial || !surname) return "";
+  return initial + ":" + surname;
+}
+
 const NZ_TZ = "Pacific/Auckland";
 
 /** "2026-06-13" -> { day: "13", month: "Jun", weekday: "Sat" } */
