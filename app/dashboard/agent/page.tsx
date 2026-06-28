@@ -16,14 +16,14 @@ import {
   cn,
   REQUEST_STATUS_STYLES,
 } from "@/lib/utils";
-import { linkJockeyByEmail, unlinkJockey } from "./actions";
+import { linkJockeyByEmail, unlinkJockey, createPlaceholderJockey, updateManagedJockey } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AgentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; linked?: string }>;
+  searchParams: Promise<{ error?: string; linked?: string; updated?: string }>;
 }) {
   const queryParams = await searchParams;
   const supabase = await createClient();
@@ -45,6 +45,8 @@ export default async function AgentPage({
   let managed: {
     id: string;
     full_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     profile_photo_url: string | null;
     riding_weight: number | null;
     apprentice: boolean | null;
@@ -65,7 +67,7 @@ export default async function AgentPage({
       const { data } = await supabase
         .from("profiles")
         .select(
-          "id, full_name, profile_photo_url, riding_weight, apprentice, apprentice_claim, base_region, verified, is_placeholder"
+          "id, full_name, first_name, last_name, profile_photo_url, riding_weight, apprentice, apprentice_claim, base_region, verified, is_placeholder"
         )
         .in("id", ids)
         .order("full_name");
@@ -126,6 +128,7 @@ export default async function AgentPage({
     link_failed: "Could not link that jockey. Please try again.",
     missing_name: "Enter the rider's first and last name.",
     create_failed: "Could not create the placeholder profile. Please try again.",
+    cannot_edit: "You can only edit details for placeholder riders you manage.",
   };
 
   return (
@@ -144,7 +147,12 @@ export default async function AgentPage({
       )}
       {queryParams.linked && (
         <div className="rounded-xl border border-turf-200 bg-turf-50 px-4 py-3 text-sm text-turf-700">
-          Jockey linked. You can now set their calendar and send requests for them.
+          Rider added. You can now set their calendar, edit their details and send requests for them.
+        </div>
+      )}
+      {queryParams.updated && (
+        <div className="rounded-xl border border-turf-200 bg-turf-50 px-4 py-3 text-sm text-turf-700">
+          Rider details updated.
         </div>
       )}
 
@@ -220,8 +228,8 @@ export default async function AgentPage({
           ) : null}
 
           {managed.length === 0 ? (
-            <EmptyState title="No jockeys linked yet">
-              Add a jockey below using the email they signed up with.
+            <EmptyState title="No riders yet">
+              Add a rider below — they don&apos;t need a JockeyFinder account; you manage everything for them.
             </EmptyState>
           ) : (
             <div className="space-y-3">
@@ -267,11 +275,78 @@ export default async function AgentPage({
                         </Button>
                       </form>
                     </div>
+                    {j.is_placeholder ? (
+                      <details className="w-full border-t border-line pt-3">
+                        <summary className="cursor-pointer text-xs font-semibold text-turf-700">
+                          Edit details
+                        </summary>
+                        <form
+                          action={updateManagedJockey}
+                          className="mt-3 grid gap-3 sm:grid-cols-2"
+                        >
+                          <input type="hidden" name="jockey_id" value={j.id} />
+                          <div>
+                            <Label htmlFor={`fn-${j.id}`}>First name</Label>
+                            <Input id={`fn-${j.id}`} name="first_name" defaultValue={j.first_name ?? ""} />
+                          </div>
+                          <div>
+                            <Label htmlFor={`ln-${j.id}`}>Last name</Label>
+                            <Input id={`ln-${j.id}`} name="last_name" defaultValue={j.last_name ?? ""} />
+                          </div>
+                          <div>
+                            <Label htmlFor={`rw-${j.id}`}>Riding weight (kg)</Label>
+                            <Input id={`rw-${j.id}`} name="riding_weight" type="number" step="0.5" min="30" max="100" defaultValue={j.riding_weight ?? ""} placeholder="e.g. 54.5" />
+                          </div>
+                          <div>
+                            <Label htmlFor={`ac-${j.id}`}>Apprentice claim (kg)</Label>
+                            <Input id={`ac-${j.id}`} name="apprentice_claim" type="number" step="0.5" min="0" max="4" defaultValue={j.apprentice_claim ?? ""} placeholder="blank = none" />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <Label htmlFor={`br-${j.id}`}>Base region</Label>
+                            <Input id={`br-${j.id}`} name="base_region" defaultValue={j.base_region ?? ""} placeholder="e.g. Waikato" />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <Button type="submit" size="sm">Save details</Button>
+                          </div>
+                        </form>
+                      </details>
+                    ) : null}
                   </CardBody>
                 </Card>
               ))}
             </div>
           )}
+
+          <Card>
+            <CardBody>
+              <h3 className="font-display text-base font-semibold text-ink">Add a rider</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                For a rider who isn&apos;t on JockeyFinder yet. You manage everything for them;
+                their profile is automatically claimed when they sign up with a matching name, email or phone.
+              </p>
+              <form action={createPlaceholderJockey} className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="pf-first">First name</Label>
+                  <Input id="pf-first" name="first_name" required placeholder="Ethan" />
+                </div>
+                <div>
+                  <Label htmlFor="pf-last">Last name</Label>
+                  <Input id="pf-last" name="last_name" required placeholder="Jones" />
+                </div>
+                <div>
+                  <Label htmlFor="pf-email">Email (optional)</Label>
+                  <Input id="pf-email" name="email" type="email" placeholder="rider@example.com" />
+                </div>
+                <div>
+                  <Label htmlFor="pf-phone">Phone (optional)</Label>
+                  <Input id="pf-phone" name="phone" placeholder="+64 …" />
+                </div>
+                <div className="sm:col-span-2">
+                  <Button type="submit">Add rider</Button>
+                </div>
+              </form>
+            </CardBody>
+          </Card>
 
           <Card>
             <CardBody>
