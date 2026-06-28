@@ -104,22 +104,24 @@ export default async function JockeyProfilePage({
     };
   }
 
-  // Agent (if this jockey is managed by one), shown on the profile.
+  // Agent (if this jockey is managed by one), shown on the profile. Read from
+  // the security-definer public_jockey_agents view — agent_jockeys is RLS-locked
+  // to the agent/jockey, so the anon profile page can't read it directly. The
+  // view already gates the agent phone by the jockey's show_agent_phone pref.
   let agent: { id: string; full_name: string | null; phone: string | null } | null = null;
   {
-    const { data: link } = await supabase
-      .from("agent_jockeys")
-      .select("agent_id")
+    const { data: a } = await supabase
+      .from("public_jockey_agents")
+      .select("agent_id, agent_name, agent_phone")
       .eq("jockey_id", jockey.id)
       .limit(1)
       .maybeSingle();
-    if (link?.agent_id) {
-      const { data: a } = await supabase
-        .from("public_agents")
-        .select("id, full_name, phone")
-        .eq("id", link.agent_id)
-        .maybeSingle();
-      agent = a ?? null;
+    if (a) {
+      agent = {
+        id: (a as any).agent_id,
+        full_name: (a as any).agent_name,
+        phone: (a as any).agent_phone,
+      };
     }
   }
 

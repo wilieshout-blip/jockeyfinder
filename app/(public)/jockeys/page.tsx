@@ -24,20 +24,20 @@ export default async function JockeysPage() {
     .eq("role", "jockey")
     .order("full_name", { ascending: true });
 
-  // Agent phones and names
+  // Agent names + phones for every represented jockey. Read from the
+  // security-definer public_jockey_agents view because agent_jockeys itself is
+  // RLS-locked to the agent/jockey, so the anon directory could never see it.
   const jockeyIds = (jockeysRaw ?? []).map((j: any) => j.id);
   const agentPhoneMap: Record<string, string> = {};
   const agentNameMap: Record<string, string> = {};
   if (jockeyIds.length > 0) {
     const { data: agentLinks } = await supabase
-      .from("agent_jockeys")
-      .select("jockey_id, agent:profiles!agent_id(full_name, phone)")
+      .from("public_jockey_agents")
+      .select("jockey_id, agent_name, agent_phone")
       .in("jockey_id", jockeyIds);
     for (const link of agentLinks ?? []) {
-      const agentPhone = (link as any).agent?.phone;
-      const agentName = (link as any).agent?.full_name;
-      if (agentPhone) agentPhoneMap[(link as any).jockey_id] = agentPhone;
-      if (agentName) agentNameMap[(link as any).jockey_id] = agentName;
+      if ((link as any).agent_phone) agentPhoneMap[(link as any).jockey_id] = (link as any).agent_phone;
+      if ((link as any).agent_name) agentNameMap[(link as any).jockey_id] = (link as any).agent_name;
     }
   }
 
