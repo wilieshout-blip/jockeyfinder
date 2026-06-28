@@ -172,8 +172,8 @@ export async function updateManagedJockey(formData: FormData) {
 
   await admin.from("profiles").update(update).eq("id", jockeyId);
 
-  revalidatePath("/dashboard/agent");
-  redirect("/dashboard/agent?updated=1");
+  revalidatePath(`/dashboard/agent/${jockeyId}`);
+  redirect(`/dashboard/agent/${jockeyId}?updated=1`);
 }
 
 export async function unlinkJockey(formData: FormData) {

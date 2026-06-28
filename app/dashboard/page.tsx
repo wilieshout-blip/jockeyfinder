@@ -132,6 +132,52 @@ export default async function DashboardPage() {
     }
   }
 
+  // Agent: operational overview across the whole stable.
+  let agentRequests: any[] = [];
+  let agentPendingCount = 0;
+  let agentAttendingCount = 0;
+  const agentRidesByJockey = new Map<string, number>();
+  if (profile.role === "agent" && managed.length > 0) {
+    const mIds = managed.map((m) => m.id);
+    const nameById = new Map(managed.map((m) => [m.id, m.full_name]));
+    const { data: reqs } = await supabase
+      .from("ride_requests")
+      .select("id, jockey_id, horse_name, race_number, status, meeting_id, created_at, meetings(meeting_date, track)")
+      .in("jockey_id", mIds)
+      .order("created_at", { ascending: false })
+      .limit(80);
+    const all = (reqs ?? [])
+      .map((r: any) => ({
+        id: r.id,
+        jockey_id: r.jockey_id,
+        jockey_name: nameById.get(r.jockey_id) ?? "Rider",
+        horse_name: r.horse_name,
+        race_number: r.race_number,
+        status: r.status as string,
+        meeting_id: r.meeting_id,
+        meeting_date: r.meetings?.meeting_date ?? null,
+        track: r.meetings?.track ?? null,
+      }))
+      .filter((r) => r.status !== "cancelled");
+    agentPendingCount = all.filter((r) => r.status === "requested").length;
+    for (const r of all) {
+      if ((r.meeting_date ?? "") >= nzToday()) {
+        agentRidesByJockey.set(r.jockey_id, (agentRidesByJockey.get(r.jockey_id) ?? 0) + 1);
+      }
+    }
+    agentRequests = all
+      .filter((r) => (r.meeting_date ?? "") >= nzToday())
+      .sort((a, b) => (a.meeting_date ?? "").localeCompare(b.meeting_date ?? ""))
+      .slice(0, 15);
+
+    const { data: att } = await supabase
+      .from("meeting_attendance")
+      .select("meeting_id")
+      .in("user_id", mIds)
+      .eq("attending", true);
+    agentAttendingCount = new Set((att ?? []).map((a) => a.meeting_id)).size;
+  }
+
   // Trainer: horse links (pending + confirmed). On first visit, auto-load the
   // trainer's stable from the horse registry (matched on nztr_trainer_name) so
   // they only have to confirm or deny each horse rather than search them up.
@@ -225,10 +271,11 @@ export default async function DashboardPage() {
     stableMembers = (data ?? []) as unknown as StableMember[];
   }
 
-  // Jockey / agent: black-book horses + which are entered to race soon.
+  // Jockey: black-book horses + which are entered to race soon. (For agents the
+  // black book lives per-rider on each rider's acting page, not the agent home.)
   let blackBook: BlackBookEntry[] = [];
   let blackBookNominations: any[] = [];
-  if (profile.role === "jockey" || profile.role === "agent") {
+  if (profile.role === "jockey") {
     const { data: bb } = await supabase
       .from("black_book")
       .select("id, horse_id, horse_name")
@@ -778,71 +825,111 @@ export default async function DashboardPage() {
 
       {profile.role === "agent" ? (
         <>
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
-              Your jockeys · {managed.length}
-            </h2>
-            <Link
-              href="/dashboard/agent"
-              className="text-sm font-medium text-turf-700 hover:underline"
-            >
-              Manage jockeys
-            </Link>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {([
+              ["Riders", managed.length],
+              ["Awaiting reply", agentPendingCount],
+              ["Upcoming rides", agentRequests.length],
+              ["Meetings attending", agentAttendingCount],
+            ] as [string, number][]).map(([label, value]) => (
+              <div key={label} className="rounded-2xl border border-line bg-white p-4 shadow-card">
+                <p className="font-display text-2xl font-semibold tracking-tight text-ink">{value}</p>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">{label}</p>
+              </div>
+            ))}
           </div>
-          {managed.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {managed.map((j) => (
-                <div
-                  key={j.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4"
-                >
-                  <div>
-                    <p className="font-medium text-ink">{j.full_name}</p>
-                    <p className="text-sm text-zinc-500">
-                      {j.riding_weight != null ? j.riding_weight + "kg" : "No weight set"}
-                      {j.apprentice && formatClaim(j.apprentice_claim)
-                        ? " · claims " + formatClaim(j.apprentice_claim)
-                        : ""}
-                    </p>
-                  </div>
-                  {j.apprentice && formatClaim(j.apprentice_claim) ? (
-                    <ClothChip tone="turf">{formatClaim(j.apprentice_claim)}</ClothChip>
-                  ) : null}
-                </div>
-              ))}
+
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                Your riders · {managed.length}
+              </h2>
+              <Link href="/dashboard/agent" className="text-sm font-medium text-turf-700 hover:underline">
+                Add / manage riders
+              </Link>
             </div>
-          ) : (
-            <EmptyState title="No jockeys linked yet">
-              Add the jockeys you manage from the My Jockeys page.
-            </EmptyState>
-          )}
-        </section>
-        <section className="mt-6 space-y-3">
-          <BlackBook userId={profile.id} initialEntries={blackBook} />
-          {blackBookNominations.length > 0 ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Black-book horses racing soon</p>
-              <div className="space-y-2">
-                {blackBookNominations.map((n: any) => {
-                  const m = n.meetings;
+            {managed.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {managed.map((j) => {
+                  const rides = agentRidesByJockey.get(j.id) ?? 0;
                   return (
-                    <Link key={n.id} href={m?.id ? `/meetings/${m.id}` : "/meetings"} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3 py-2.5 transition-colors hover:border-turf-200">
+                    <Link
+                      key={j.id}
+                      href={`/dashboard/agent/${j.id}`}
+                      className="group flex items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4 shadow-card transition-all hover:border-turf-200 hover:shadow-lift"
+                    >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-ink">{n.horse_name}</p>
-                        <p className="truncate text-xs text-zinc-500">{m?.track}{m?.meeting_date ? " · " + formatMeetingDate(m.meeting_date) : ""}{n.race_number ? " · R" + n.race_number : ""}{n.jockey_name ? " · " + n.jockey_name : ""}</p>
+                        <p className="flex items-center gap-2 font-medium text-ink">
+                          {j.full_name}
+                          {j.is_placeholder ? (
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">placeholder</span>
+                          ) : null}
+                        </p>
+                        <p className="mt-0.5 text-sm text-zinc-500">
+                          {j.riding_weight != null ? (
+                            `${j.riding_weight}kg`
+                          ) : (
+                            <span className="font-medium text-amber-600">No weight set</span>
+                          )}
+                          {j.apprentice && formatClaim(j.apprentice_claim) ? ` · claims ${formatClaim(j.apprentice_claim)}` : ""}
+                          {rides > 0 ? ` · ${rides} upcoming` : ""}
+                        </p>
                       </div>
-                      <span className="shrink-0 rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700">View</span>
+                      <span className="shrink-0 rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700 group-hover:bg-turf-100">
+                        Manage →
+                      </span>
                     </Link>
                   );
                 })}
               </div>
-            </div>
-          ) : null}
-        </section>
+            ) : (
+              <EmptyState title="No riders yet">
+                Add a rider from{" "}
+                <Link href="/dashboard/agent" className="font-medium text-turf-700 underline">My Jockeys</Link>{" "}
+                — they don&apos;t need an account.
+              </EmptyState>
+            )}
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              Ride requests across your stable
+            </h2>
+            {agentRequests.length > 0 ? (
+              <div className="grid gap-2">
+                {agentRequests.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={r.meeting_id ? `/meetings/${r.meeting_id}` : "/dashboard/requests"}
+                    className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card transition-all hover:border-turf-200 hover:shadow-lift"
+                  >
+                    {r.meeting_date ? <DateBlock date={r.meeting_date} /> : null}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display font-semibold text-ink">
+                        {r.horse_name || "Ride"}{r.race_number ? ` · R${r.race_number}` : ""}
+                      </p>
+                      <p className="mt-0.5 text-sm text-zinc-500">
+                        {r.jockey_name}
+                        {r.track ? ` · ${r.track}` : ""}
+                        {r.meeting_date ? ` · ${formatMeetingDate(r.meeting_date)}` : ""}
+                      </p>
+                    </div>
+                    <span className={cn("shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize", REQUEST_STATUS_STYLES[r.status] ?? "border-line text-zinc-500")}>
+                      {r.status}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="No upcoming ride requests">
+                Open a rider and request rides for them from any meeting&apos;s race card.
+              </EmptyState>
+            )}
+          </section>
         </>
       ) : null}
 
+      {profile.role !== "agent" ? (
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
@@ -893,6 +980,7 @@ export default async function DashboardPage() {
           </EmptyState>
         )}
       </section>
+      ) : null}
     </div>
   );
 }

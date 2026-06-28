@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/utils";
 import { AppNav } from "@/components/app-nav";
-import { AgentBar } from "@/components/agent-bar";
 import type { Profile, Subscription } from "@/lib/types";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -42,24 +41,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     );
-  }
-
-  // Fetch managed jockeys for agents (approved only)
-  let managedJockeys: { id: string; full_name: string | null; profile_photo_url: string | null }[] = [];
-  if (profile?.role === "agent" && profile.verification_status === "approved") {
-    const { data: links } = await supabase
-      .from("agent_jockeys")
-      .select("jockey_id")
-      .eq("agent_id", user.id);
-    const ids = (links ?? []).map((l) => l.jockey_id);
-    if (ids.length > 0) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, profile_photo_url")
-        .in("id", ids)
-        .order("full_name");
-      managedJockeys = data ?? [];
-    }
   }
 
   let paywallActive = false;
@@ -123,9 +104,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       ) : null}
-      {managedJockeys.length > 0 && (
-        <AgentBar jockeys={managedJockeys} />
-      )}
       {paywallActive && !paywallBypassed ? (
         <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-7 sm:px-6 lg:px-8 lg:pt-9">
           <div className="mx-auto max-w-xl border border-gold-200 bg-gold-50 p-8 text-center shadow-card">
