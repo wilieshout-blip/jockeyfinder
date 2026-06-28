@@ -251,13 +251,25 @@ export default async function AdminPage({
     (p: any) => p.licence_type === "trial_jumpout_only"
   ) as PendingProfile[];
 
+  const pendingAgentsList = (pendingAgents || []) as PendingProfile[];
+  const totalPending =
+    pendingFullJockeys.length + pendingTrialRiders.length + pendingAgentsList.length;
+
+  const tools = [
+    { href: "/admin/broadcast", title: "Broadcast email", blurb: "Templated email to all users or a type." },
+    { href: "/admin/stand-downs", title: "Stand-downs", blurb: "Record & alert affected trainers." },
+    { href: "/admin/sync", title: "Data sync hub", blurb: "Ingestion health & staleness." },
+    { href: "/admin/monitor", title: "Outlier monitor", blurb: "Same-day clashes & weight anomalies." },
+    { href: "/admin/chats", title: "Chat supervisor", blurb: "Oversight of booking chats." },
+  ];
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <PageHeader
         dark
         eyebrow="Admin"
         title="Operations console"
-        description="Approvals, registry checks, test accounts and the race calendar feed."
+        description="Approvals, registry checks, tools and the race calendar feed."
       />
 
       {testError ? (
@@ -266,200 +278,218 @@ export default async function AdminPage({
         </div>
       ) : null}
 
-      {/* All users management */}
-      <Link
-        href="/admin/users"
-        className="flex items-center justify-between rounded-2xl border border-ink bg-ink p-5 text-white transition-colors hover:bg-zinc-800"
-      >
-        <div>
-          <p className="font-display text-lg font-semibold">Manage all users →</p>
-          <p className="mt-0.5 text-sm text-zinc-300">
-            Full list of jockeys, trainers, owners &amp; agents — approve, change role, delete, send test email.
-          </p>
-        </div>
-      </Link>
-
-      {/* Admin tool shortcuts */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { href: "/admin/broadcast", title: "Broadcast email", blurb: "Send a templated email to all users or a user type." },
-          { href: "/admin/stand-downs", title: "Stand-downs", blurb: "Record a stand-down & alert affected trainers." },
-          { href: "/admin/sync", title: "Data sync hub", blurb: "Ingestion health, coverage & staleness alerts." },
-          { href: "/admin/monitor", title: "Outlier monitor", blurb: "Same-day clashes & weight anomalies." },
-          { href: "/admin/chats", title: "Chat supervisor", blurb: "Read-only oversight of booking chats." },
-        ].map((t) => (
-          <Link
-            key={t.href}
-            href={t.href}
-            className="rounded-2xl border border-line bg-white p-4 shadow-card transition-colors hover:border-turf-200"
-          >
-            <p className="font-display font-semibold text-ink">{t.title} →</p>
-            <p className="mt-0.5 text-sm text-zinc-500">{t.blurb}</p>
-          </Link>
-        ))}
-      </div>
-
-      {/* Test accounts panel */}
-      <section>
-        <div className="mb-4 flex items-center gap-3">
-          <h2 className="font-display text-lg font-semibold text-ink">
-            Test accounts
-          </h2>
-          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-            Dev only
-          </span>
-        </div>
-        <p className="mb-4 text-sm text-zinc-500">
-          Click any card to instantly sign in as that test user.
-          Your admin session ends — log back in as{" "}
-          <span className="font-medium text-ink">wilieshout@gmail.com</span> to return here.
-          Password for all test accounts: <span className="font-mono font-medium text-ink">TestPass123!</span>
-        </p>
-        <TestAccountCards />
-      </section>
-
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {/* Compact stats strip */}
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {[
           ["Jockeys", jockeys],
           ["Trainers", trainers],
           ["Owners", owners],
           ["Agents", agents],
-          ["Registry rows", registryRows],
-          ["Meetings ahead", meetingsAhead],
+          ["Registry", registryRows],
+          ["Meetings", meetingsAhead],
         ].map(([label, value]) => (
-          <Card key={label as string}>
-            <CardBody className="py-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                {label}
-              </p>
-              <p className="mt-1 font-display text-2xl font-bold text-ink">
-                {value as number}
-              </p>
-            </CardBody>
-          </Card>
+          <div
+            key={label as string}
+            className="rounded-xl border border-line bg-white px-3 py-2.5 text-center shadow-card"
+          >
+            <p className="font-display text-xl font-bold text-ink">{value as number}</p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">{label}</p>
+          </div>
         ))}
       </div>
 
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold text-ink">
-            Race calendar
-          </h2>
-          <SyncButton lastSyncedAt={lastSyncedAt} source={lastSyncedSource} />
-        </div>
-        <p className="text-sm text-zinc-500">
-          Pulls upcoming NZ meetings and race-card entries. Race fields
-          auto-sync every 15 minutes; this button forces an immediate refresh.
-        </p>
-      </section>
+      {/* Work queue + quick actions */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Approvals — the recurring work, front and centre */}
+        <div className="space-y-5 lg:col-span-2">
+          <div className="flex items-center gap-2.5">
+            <h2 className="font-display text-lg font-semibold text-ink">Approvals</h2>
+            {totalPending > 0 ? (
+              <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
+                {totalPending} waiting
+              </span>
+            ) : (
+              <span className="rounded-full bg-turf-100 px-2 py-0.5 text-xs font-semibold text-turf-700">
+                All clear
+              </span>
+            )}
+          </div>
 
-      <section>
-        <h2 className="mb-4 font-display text-lg font-semibold text-ink">
-          Jockeys awaiting approval
-        </h2>
-        <PendingList
-          rows={pendingFullJockeys}
-          kind="jockey"
-          emptyLabel="No jockeys waiting"
-        />
-      </section>
-
-      <section>
-        <div className="mb-4 flex items-center gap-3">
-          <h2 className="font-display text-lg font-semibold text-ink">
-            Trial riders awaiting approval
-          </h2>
-          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-            Permit required
-          </span>
-        </div>
-        <PendingList
-          rows={pendingTrialRiders}
-          kind="trial_rider"
-          emptyLabel="No trial riders waiting"
-        />
-      </section>
-
-      <section>
-        <h2 className="mb-4 font-display text-lg font-semibold text-ink">
-          Agents awaiting approval
-        </h2>
-        <PendingList rows={(pendingAgents || []) as PendingProfile[]} kind="agent" />
-      </section>
-
-      <section>
-        <h2 className="mb-4 font-display text-lg font-semibold text-ink">
-          Recently auto approved trainers
-        </h2>
-        {(recentTrainers || []).length === 0 ? (
-          <EmptyState title="No trainers yet">
-            Trainers verify automatically when their phone matches the NZTR registry.
-          </EmptyState>
-        ) : (
-          <Card>
-            <CardBody className="divide-y divide-line p-0">
-              {(recentTrainers || []).map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between gap-3 px-5 py-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-ink">
-                      {t.full_name || "Unnamed"}
-                    </p>
-                    <p className="text-xs text-zinc-400">{t.email}</p>
-                  </div>
-                  <Badge tone="turf">Registry match</Badge>
+          {totalPending === 0 ? (
+            <EmptyState title="Nothing waiting for review">
+              New signups will appear here for approval.
+            </EmptyState>
+          ) : (
+            <div className="space-y-6">
+              {pendingFullJockeys.length > 0 ? (
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                    Jockeys · {pendingFullJockeys.length}
+                  </h3>
+                  <PendingList rows={pendingFullJockeys} kind="jockey" />
                 </div>
+              ) : null}
+              {pendingTrialRiders.length > 0 ? (
+                <div>
+                  <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                    Trial riders · {pendingTrialRiders.length}
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      Permit required
+                    </span>
+                  </h3>
+                  <PendingList rows={pendingTrialRiders} kind="trial_rider" />
+                </div>
+              ) : null}
+              {pendingAgentsList.length > 0 ? (
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                    Agents · {pendingAgentsList.length}
+                  </h3>
+                  <PendingList rows={pendingAgentsList} kind="agent" />
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        {/* Quick actions sidebar */}
+        <aside className="space-y-4">
+          <Link
+            href="/admin/users"
+            className="block rounded-2xl border border-ink bg-ink p-4 text-white transition-colors hover:bg-zinc-800"
+          >
+            <p className="font-display font-semibold">Manage all users →</p>
+            <p className="mt-0.5 text-xs text-zinc-300">
+              Search, approve, change role, edit, pause or delete.
+            </p>
+          </Link>
+
+          <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+            <p className="border-b border-line px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              Tools
+            </p>
+            <div className="divide-y divide-line">
+              {tools.map((t) => (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-mist/60"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink">{t.title}</p>
+                    <p className="truncate text-xs text-zinc-400">{t.blurb}</p>
+                  </div>
+                  <span className="shrink-0 text-zinc-300">→</span>
+                </Link>
               ))}
-            </CardBody>
-          </Card>
-        )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                Race calendar
+              </p>
+              <SyncButton lastSyncedAt={lastSyncedAt} source={lastSyncedSource} />
+            </div>
+            <p className="text-xs text-zinc-500">
+              Auto-syncs every 15 min; the button forces an immediate refresh.
+            </p>
+          </div>
+        </aside>
+      </div>
+
+      {/* Test accounts (dev only) */}
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-card">
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h2 className="font-display text-lg font-semibold text-ink">Test accounts</h2>
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+            Dev only
+          </span>
+          <p className="text-xs text-zinc-500">
+            One-click sign-in · password{" "}
+            <span className="font-mono font-medium text-ink">TestPass123!</span> · log back in as{" "}
+            <span className="font-medium text-ink">wilieshout@gmail.com</span> to return.
+          </p>
+        </div>
+        <TestAccountCards />
       </section>
 
-      <section>
-        <h2 className="mb-4 font-display text-lg font-semibold text-ink">
-          Latest ride requests
-        </h2>
-        {(recentRequests || []).length === 0 ? (
-          <EmptyState title="No requests yet" />
-        ) : (
-          <Card>
-            <CardBody className="divide-y divide-line p-0">
-              {(recentRequests || []).map((r) => {
-                const m = r.meeting_id ? meetingById.get(r.meeting_id) : null;
-                return (
+      {/* Recent activity */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section>
+          <h2 className="mb-3 font-display text-lg font-semibold text-ink">
+            Recently auto-approved trainers
+          </h2>
+          {(recentTrainers || []).length === 0 ? (
+            <EmptyState title="No trainers yet">
+              Trainers verify automatically when their phone matches the NZTR registry.
+            </EmptyState>
+          ) : (
+            <Card>
+              <CardBody className="divide-y divide-line p-0">
+                {(recentTrainers || []).map((t) => (
                   <div
-                    key={r.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+                    key={t.id}
+                    className="flex items-center justify-between gap-3 px-5 py-3"
                   >
-                    <div className="min-w-0">
+                    <div>
                       <p className="text-sm font-medium text-ink">
-                        {nameById.get(r.trainer_id) || "Trainer"} to{" "}
-                        {nameById.get(r.jockey_id) || "Jockey"}
+                        {t.full_name || "Unnamed"}
                       </p>
-                      <p className="text-xs text-zinc-400">
-                        {r.horse_name ? r.horse_name + " · " : ""}
-                        {m ? m.track + ", " + formatMeetingDate(m.meeting_date) : "No meeting"}
-                        {r.race_number ? " · R" + r.race_number : ""}
-                      </p>
+                      <p className="text-xs text-zinc-400">{t.email}</p>
                     </div>
-                    <span
-                      className={cn(
-                        "rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
-                        REQUEST_STATUS_STYLES[r.status] || REQUEST_STATUS_STYLES.requested
-                      )}
-                    >
-                      {r.status}
-                    </span>
+                    <Badge tone="turf">Registry match</Badge>
                   </div>
-                );
-              })}
-            </CardBody>
-          </Card>
-        )}
-      </section>
+                ))}
+              </CardBody>
+            </Card>
+          )}
+        </section>
+
+        <section>
+          <h2 className="mb-3 font-display text-lg font-semibold text-ink">
+            Latest ride requests
+          </h2>
+          {(recentRequests || []).length === 0 ? (
+            <EmptyState title="No requests yet" />
+          ) : (
+            <Card>
+              <CardBody className="divide-y divide-line p-0">
+                {(recentRequests || []).map((r) => {
+                  const m = r.meeting_id ? meetingById.get(r.meeting_id) : null;
+                  return (
+                    <div
+                      key={r.id}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">
+                          {nameById.get(r.trainer_id) || "Trainer"} to{" "}
+                          {nameById.get(r.jockey_id) || "Jockey"}
+                        </p>
+                        <p className="text-xs text-zinc-400">
+                          {r.horse_name ? r.horse_name + " · " : ""}
+                          {m ? m.track + ", " + formatMeetingDate(m.meeting_date) : "No meeting"}
+                          {r.race_number ? " · R" + r.race_number : ""}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
+                          REQUEST_STATUS_STYLES[r.status] || REQUEST_STATUS_STYLES.requested
+                        )}
+                      >
+                        {r.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </CardBody>
+            </Card>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

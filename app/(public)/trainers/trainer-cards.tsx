@@ -31,12 +31,22 @@ export interface RegistryTrainer {
   location: string | null;
 }
 
+export interface TrainerStat {
+  season_wins: number;
+  season_seconds: number;
+  season_thirds: number;
+  season_starts: number;
+  career_wins: number;
+  career_starts: number;
+}
+
 interface Props {
   trainers: DirectoryTrainer[];
   registry: RegistryTrainer[];
+  statsById?: Record<string, TrainerStat>;
 }
 
-export function TrainerCards({ trainers, registry }: Props) {
+export function TrainerCards({ trainers, registry, statsById = {} }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   // Strip titles from NZTR names before building lookup so they match clean profile names
@@ -51,6 +61,7 @@ export function TrainerCards({ trainers, registry }: Props) {
       {trainers.map((t) => {
         const isOpen = openId === t.id;
         const detailsId = `trainer-card-${t.id}`;
+        const stat = statsById[t.id];
         const reg = t.full_name
           ? registryByName.get(t.full_name.toLowerCase())
           : undefined;
@@ -144,6 +155,41 @@ export function TrainerCards({ trainers, registry }: Props) {
                 ) : (
                   <p className="text-sm italic text-zinc-400">No bio added yet.</p>
                 )}
+
+                {/* Season stats (from LoveRacing trainer premierships) */}
+                {stat ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      {[
+                        { label: "Runners", value: stat.season_starts },
+                        { label: "Wins", value: stat.season_wins },
+                        { label: "Places", value: stat.season_seconds + stat.season_thirds },
+                        {
+                          label: "Win %",
+                          value:
+                            stat.season_starts > 0
+                              ? `${Math.round((stat.season_wins / stat.season_starts) * 100)}%`
+                              : "—",
+                        },
+                      ].map(({ label, value }) => (
+                        <div
+                          key={label}
+                          className="rounded-xl border border-line bg-white px-1 py-2.5"
+                        >
+                          <p className="text-[10px] uppercase tracking-wide text-zinc-400">{label}</p>
+                          <p className="mt-0.5 font-display text-sm font-semibold text-ink">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {stat.career_wins > 0 ? (
+                      <p className="text-center text-[11px] text-zinc-400">
+                        Last 5 seasons:{" "}
+                        <span className="font-semibold text-zinc-500">{stat.career_wins}</span> wins
+                        from {stat.career_starts} runners
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {/* Location info block */}
                 {hasLocationDetail ? (

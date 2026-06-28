@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { TrainerCards } from "./trainer-cards";
 import { RegistryPeopleList } from "@/components/registry-people-list";
-import type { DirectoryTrainer, RegistryTrainer } from "./trainer-cards";
+import type { DirectoryTrainer, RegistryTrainer, TrainerStat } from "./trainer-cards";
 import type { RegistryPerson } from "@/components/registry-people-list";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -96,12 +96,14 @@ interface Props {
       trainers: DirectoryTrainer[];
         registry: RegistryTrainer[];
           registryPeople: RegistryPerson[];
+            statsById?: Record<string, TrainerStat>;
 }
 
 export function TrainerDirectory({
       trainers,
         registry,
           registryPeople,
+            statsById,
 }: Props) {
       const [island, setIsland] = useState<string | null>(null);
         const [region, setRegion] = useState<string | null>(null);
@@ -200,7 +202,7 @@ export function TrainerDirectory({
 
                                                                                                         {/* Verified trainers */}
                                                                                                               {filteredTrainers.length > 0 ? (
-                                                                                                                        <TrainerCards trainers={filteredTrainers} registry={registry} />
+                                                                                                                        <TrainerCards trainers={filteredTrainers} registry={registry} statsById={statsById} />
                                                                                                               ) : (
                                                                                                                         <div className="rounded-2xl border border-dashed border-line bg-white px-6 py-10 text-center">
                                                                                                                                   <p className="text-sm text-zinc-500">

@@ -10,6 +10,7 @@ import { VerifiedBadge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { startDirectMessage } from "@/app/dashboard/messages/actions";
 import { Card, CardBody } from "@/components/ui/card";
+import { registryKey } from "@/lib/utils";
 
 interface PublicTrainer {
   id: string;
@@ -97,6 +98,22 @@ export default async function TrainerProfilePage({
     runners = data ?? [];
   }
 
+  // Season + career stats from the LoveRacing trainer premiership feed, matched
+  // on the first partner's initial+surname (partnerships are "A B & C D").
+  let tstat:
+    | { season_wins: number; season_seconds: number; season_thirds: number; season_starts: number; career_wins: number; career_starts: number }
+    | null = null;
+  if (trainer.full_name) {
+    const { data: premRows } = await supabase
+      .from("nztr_trainer_stats")
+      .select("name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts");
+    const myKey = registryKey(trainer.full_name);
+    tstat =
+      ((premRows ?? []).find(
+        (r: any) => registryKey(String(r.name).split("&")[0]) === myKey
+      ) as any) ?? null;
+  }
+
   const verifiedSince = trainer.created_at
     ? new Date(trainer.created_at).toLocaleDateString("en-NZ", {
         day: "numeric",
@@ -150,6 +167,38 @@ export default async function TrainerProfilePage({
 
       {trainer.bio ? (
         <p className="mt-6 max-w-2xl text-zinc-700">{trainer.bio}</p>
+      ) : null}
+
+      {tstat ? (
+        <section className="mt-8">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+            This season
+          </h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: "Runners", value: tstat.season_starts },
+              { label: "Wins", value: tstat.season_wins, accent: true },
+              { label: "Places", value: tstat.season_seconds + tstat.season_thirds },
+              {
+                label: "Win %",
+                value: tstat.season_starts > 0 ? `${Math.round((tstat.season_wins / tstat.season_starts) * 100)}%` : "—",
+              },
+            ].map(({ label, value, accent }) => (
+              <div key={label} className="rounded-2xl border border-line bg-white p-4 text-center shadow-card">
+                <p className={accent ? "font-display text-2xl font-bold text-turf-700" : "font-display text-2xl font-bold text-ink"}>
+                  {value}
+                </p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">{label}</p>
+              </div>
+            ))}
+          </div>
+          {tstat.career_wins > 0 ? (
+            <p className="mt-2 text-xs text-zinc-400">
+              Last 5 seasons: <span className="font-semibold text-zinc-500">{tstat.career_wins}</span> wins from{" "}
+              {tstat.career_starts} runners · from LoveRacing premierships
+            </p>
+          ) : null}
+        </section>
       ) : null}
 
       <section className="mt-8">

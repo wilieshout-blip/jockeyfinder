@@ -3,7 +3,7 @@ export const revalidate = 900;
 import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
 import { TrainerDirectory } from "./trainer-directory";
-import type { DirectoryTrainer, RegistryTrainer } from "./trainer-cards";
+import type { DirectoryTrainer, RegistryTrainer, TrainerStat } from "./trainer-cards";
 import type { RegistryPerson } from "@/components/registry-people-list";
 import { nzToday } from "@/lib/utils";
 
@@ -110,6 +110,32 @@ export default async function TrainersPage() {
     .limit(5000)
     .returns<TrainerActivityRow[]>();
 
+  // Season + career stats from the LoveRacing trainer premiership feed. The feed
+  // names partnerships "Mark Walker & Sam Bergerson", so match on the FIRST
+  // partner's initial+surname.
+  const { data: premRows } = await supabase
+    .from("nztr_trainer_stats")
+    .select("name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts");
+  const premByKey = new Map<string, any>();
+  for (const r of premRows ?? []) {
+    const firstPartner = String((r as any).name).split("&")[0];
+    const key = trainerKey(firstPartner);
+    if (key && !premByKey.has(key)) premByKey.set(key, r);
+  }
+  const trainerStatsById: Record<string, TrainerStat> = {};
+  for (const t of trainers ?? []) {
+    const r = premByKey.get(trainerKey(t.full_name));
+    if (!r) continue;
+    trainerStatsById[t.id] = {
+      season_wins: r.season_wins,
+      season_seconds: r.season_seconds,
+      season_thirds: r.season_thirds,
+      season_starts: r.season_starts,
+      career_wins: r.career_wins,
+      career_starts: r.career_starts,
+    };
+  }
+
   const activityByTrainer = buildTrainerActivity(activityRows ?? []);
   const withActivity = <T extends { full_name: string | null }>(person: T): T & TrainerActivity => ({
     ...person,
@@ -139,6 +165,7 @@ export default async function TrainersPage() {
         trainers={(trainers ?? []).map(withActivity)}
         registry={registry ?? []}
         registryPeople={(registryRaw ?? []).map(withActivity)}
+        statsById={trainerStatsById}
       />
     </div>
   );
