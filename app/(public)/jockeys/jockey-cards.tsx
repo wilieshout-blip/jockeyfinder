@@ -53,6 +53,7 @@ export interface JockeyStat {
   season_starts: number;
   career_wins: number;
   career_starts: number;
+  career_is_true?: boolean;
 }
 
 interface Props {
@@ -248,7 +249,7 @@ export function JockeyCards({ jockeys, counts, statsById }: Props) {
                     </div>
                     {stat.career_wins > 0 ? (
                       <p className="text-center text-[11px] text-zinc-400">
-                        Last 5 seasons:{" "}
+                        {stat.career_is_true ? "Career" : "Last 5 seasons"}:{" "}
                         <span className="font-semibold text-zinc-500">{stat.career_wins}</span> wins
                         from {stat.career_starts} rides
                       </p>

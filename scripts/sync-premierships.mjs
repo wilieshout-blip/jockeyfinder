@@ -54,6 +54,7 @@ function arg(name, fallback) {
 
 const DRY = !!arg("dry", false);
 const ALL_SEASONS = !!arg("all", false);
+const PROFILES = !!arg("profiles", false);
 const DELAY = parseInt(arg("delay", "400"), 10);
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -226,6 +227,77 @@ async function syncClaims() {
   return claims.length;
 }
 
+// ── Per-jockey profile scrape: TRUE career totals + suspension summary ───────
+// LoveRacing renders these server-side in the Stats Overview table on
+// /RaceInfo/Jockeys/{EntityID}/Profile.aspx (no XHR). The premiership feed only
+// spans ~5 seasons, so it undercounts career — this is the authoritative all-time.
+function parseProfile(html) {
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&#?\w+;/g, " ")
+    .replace(/\s+/g, " ");
+  const intOf = (s) => (s == null ? null : parseInt(String(s).replace(/[^0-9]/g, ""), 10));
+  const career = text.match(/Career\s+([\d,]+)\s+\$([\d,]+)\s+([\d,]+)/);
+  const susp = text.match(/Suspensions\s*\(Last:\s*([A-Za-z]+\s+\d+\s+\d{4})\)\s*(\d+)/);
+  const place = text.match(/Current Premiership place \([^)]*\)\s*(\d+)/);
+  const ridesSince = text.match(/Rides since last win\s*(\d+)/);
+
+  let lastSusp = null;
+  if (susp) {
+    const d = new Date(susp[1]);
+    if (!isNaN(d.getTime())) lastSusp = d.toISOString().slice(0, 10);
+  }
+  return {
+    career_wins: career ? intOf(career[1]) : null,
+    career_stakes: career ? intOf(career[2]) : null,
+    career_starts: career ? intOf(career[3]) : null,
+    suspensions_count: susp ? intOf(susp[2]) : null,
+    last_suspension_date: lastSusp,
+    premiership_place: place ? intOf(place[1]) : null,
+    rides_since_win: ridesSince ? intOf(ridesSince[1]) : null,
+  };
+}
+
+async function syncProfiles() {
+  // Current-season jockey entity ids — these are the riders worth a profile hit.
+  const { data: ids, error } = await supabase
+    .from("nztr_premierships")
+    .select("entity_id, season_id")
+    .eq("entity_type", "jockey");
+  if (error) {
+    console.log("  could not load entity ids:", error.message);
+    return 0;
+  }
+  const maxSeason = Math.max(...(ids ?? []).map((r) => r.season_id));
+  const entityIds = [...new Set((ids ?? []).filter((r) => r.season_id === maxSeason).map((r) => r.entity_id))];
+  console.log(`  fetching ${entityIds.length} jockey profiles (career + suspensions)…`);
+
+  let ok = 0;
+  for (const entityId of entityIds) {
+    const url = BASE + "/RaceInfo/Jockeys/" + entityId + "/Profile.aspx";
+    try {
+      const { status, body } = await curlGet(url);
+      if (status !== 200) { console.log(`  ${entityId}: HTTP ${status}`); await sleep(DELAY); continue; }
+      const p = parseProfile(body);
+      if (p.career_wins == null) { await sleep(DELAY); continue; } // no stats table
+      if (!DRY) {
+        const { error: upErr } = await supabase
+          .from("nztr_jockey_profiles")
+          .upsert({ entity_id: entityId, ...p, synced_at: new Date().toISOString() }, { onConflict: "entity_id" });
+        if (upErr) console.log(`  ${entityId}: upsert ${upErr.message}`);
+      }
+      ok++;
+    } catch (e) {
+      console.log(`  ${entityId}: ${e.message}`);
+    }
+    await sleep(DELAY);
+  }
+  console.log(`  profiles: ${ok} jockeys updated`);
+  return ok;
+}
+
 async function main() {
   const allSeasons = await discoverSeasons();
   const seasons = ALL_SEASONS ? allSeasons : [allSeasons[0]];
@@ -238,21 +310,29 @@ async function main() {
   console.log("Apprentice / highweight claims:");
   const claims = await syncClaims();
 
+  let profiles = 0;
+  if (PROFILES) {
+    console.log("Jockey profiles (true career + suspensions):");
+    profiles = await syncProfiles();
+  }
+
   // Validation sample: Elen Nicholas (EntityID 125271).
   if (!DRY) {
     const { data } = await supabase
       .from("nztr_jockey_stats")
-      .select("name, season_wins, season_starts, career_wins, season_id")
+      .select("name, season_wins, season_starts, career_wins, career_is_true, suspensions_count, season_id")
       .eq("entity_id", 125271)
       .maybeSingle();
     if (data) {
       console.log(
-        `\nValidation — ${data.name}: season ${data.season_wins}W/${data.season_starts}starts (season ${data.season_id}), career ${data.career_wins}W (LoveRacing profile shows 149 career).`
+        `\nValidation — ${data.name}: season ${data.season_wins}W/${data.season_starts}starts, career ${data.career_wins}W (${data.career_is_true ? "true all-time" : "5-season est."}), ${data.suspensions_count ?? "?"} suspensions.`
       );
     }
   }
 
-  console.log(`\nDone. ${rows} premiership rows, ${claims} claim rows ${DRY ? "parsed (dry)" : "upserted"}.`);
+  console.log(
+    `\nDone. ${rows} premiership rows, ${claims} claim rows${PROFILES ? `, ${profiles} profiles` : ""} ${DRY ? "parsed (dry)" : "upserted"}.`
+  );
 }
 
 main();

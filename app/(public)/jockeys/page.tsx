@@ -53,7 +53,7 @@ export default async function JockeysPage() {
   const { data: premRows } = await supabase
     .from("nztr_jockey_stats")
     .select(
-      "name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts, season_id"
+      "name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts, career_is_true, season_id"
     );
   const premByKey = new Map<string, any>();
   for (const r of premRows ?? []) {
@@ -71,6 +71,7 @@ export default async function JockeysPage() {
       season_starts: r.season_starts,
       career_wins: r.career_wins,
       career_starts: r.career_starts,
+      career_is_true: r.career_is_true,
     };
   }
 

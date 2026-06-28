@@ -16,6 +16,9 @@ export interface JockeyStatsData {
   seasonStarts: number;
   careerWins: number;
   careerStarts: number;
+  careerIsTrue?: boolean;
+  suspensionsCount?: number | null;
+  lastSuspensionDate?: string | null;
   seasonLabel: string;
   recentWins: RecentWin[];
 }
@@ -39,7 +42,8 @@ function formatDate(iso: string): string {
 export function JockeyStats({ stats }: { stats: JockeyStatsData }) {
   const {
     hasPremiership, seasonWins, seasonSeconds, seasonThirds, seasonStarts,
-    careerWins, careerStarts, seasonLabel, recentWins,
+    careerWins, careerStarts, careerIsTrue, suspensionsCount, lastSuspensionDate,
+    seasonLabel, recentWins,
   } = stats;
   const places = seasonSeconds + seasonThirds;
   const winPct = seasonStarts > 0 ? Math.round((seasonWins / seasonStarts) * 100) : 0;
@@ -56,11 +60,20 @@ export function JockeyStats({ stats }: { stats: JockeyStatsData }) {
         {hasPremiership && careerWins > 0 ? (
           <>
             {" · "}
+            {careerIsTrue ? "Career" : "Last 5 seasons"}:{" "}
             <span className="font-semibold text-zinc-500">{careerWins}</span> wins from{" "}
-            {careerStarts} rides over the last 5 seasons
+            {careerStarts} rides
           </>
         ) : null}
       </p>
+      {hasPremiership && suspensionsCount != null && suspensionsCount > 0 ? (
+        <p className="text-center text-[11px] text-zinc-400">
+          {suspensionsCount} career suspension{suspensionsCount === 1 ? "" : "s"}
+          {lastSuspensionDate
+            ? ` · last ${new Date(lastSuspensionDate + "T00:00:00").toLocaleDateString("en-NZ", { month: "short", year: "numeric" })}`
+            : ""}
+        </p>
+      ) : null}
       {recentWins.length > 0 ? (
         <div className="space-y-1.5">
           <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Recent wins</h3>
