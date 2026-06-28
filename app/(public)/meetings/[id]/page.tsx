@@ -60,6 +60,19 @@ function positionStyle(pos: number) {
   return "bg-mist text-zinc-500";
 }
 
+
+function declarationDates(meetingDate: string) {
+  const [y, m, d] = meetingDate.split("-").map(Number);
+  const fmt = (daysBack: number) =>
+    new Date(Date.UTC(y, m - 1, d - daysBack)).toLocaleDateString("en-NZ", {
+      timeZone: "Pacific/Auckland",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+  return { nominations: fmt(3), riders: fmt(2) };
+}
+
 export default async function MeetingDetailPage({
   params,
   searchParams,
