@@ -459,11 +459,22 @@ export default async function MeetingDetailPage({
             />
           ) : (
             <div className="border border-line bg-white p-8 text-center shadow-card">
-              <p className="text-sm font-medium text-zinc-600">
-                {isPast
-                  ? "No results have been synced yet for this meeting."
-                  : "Race entries will appear here once declared — usually about a week before race day."}
-              </p>
+              {isPast ? (
+                <p className="text-sm font-medium text-zinc-600">No results have been synced yet for this meeting.</p>
+              ) : (() => {
+                const { nominations, riders } = declarationDates(meeting.meeting_date);
+                return (
+                  <>
+                    <p className="text-sm font-semibold text-ink">Race card not yet declared</p>
+                    <div className="mt-3 space-y-1.5 text-sm">
+                      <p className="text-zinc-600">Nominations close <span className="font-semibold text-ink">{nominations}</span> · 12:00PM</p>
+                      <p className="text-zinc-600">Withdrawals close <span className="font-semibold text-ink">{riders}</span> · 10:00AM</p>
+                      <p className="text-zinc-600">Riders declared <span className="font-semibold text-ink">{riders}</span> · 1:00PM</p>
+                    </div>
+                    <p className="mt-3 text-xs text-zinc-400">Check back after 1:00PM on {riders}</p>
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
