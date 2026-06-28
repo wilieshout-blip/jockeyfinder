@@ -34,10 +34,27 @@ export default async function RequestsPage({
     .single<Profile>();
   if (!me) redirect("/login");
 
+  // Requests involving the user — and, for an agent, every request for a rider
+  // they manage (so they can accept/decline on the rider's behalf).
+  const orParts = [
+    `trainer_id.eq.${user.id}`,
+    `jockey_id.eq.${user.id}`,
+    `created_by.eq.${user.id}`,
+  ];
+  const managedIds = new Set<string>();
+  if (me.role === "agent") {
+    const { data: links } = await supabase
+      .from("agent_jockeys")
+      .select("jockey_id")
+      .eq("agent_id", user.id);
+    for (const l of links ?? []) if (l.jockey_id) managedIds.add(l.jockey_id);
+    if (managedIds.size > 0) orParts.push(`jockey_id.in.(${[...managedIds].join(",")})`);
+  }
+
   const { data: requests } = await supabase
     .from("ride_requests")
     .select("*")
-    .or(`trainer_id.eq.${user.id},jockey_id.eq.${user.id},created_by.eq.${user.id}`)
+    .or(orParts.join(","))
     .order("created_at", { ascending: false })
     .returns<RideRequest[]>();
 
@@ -175,6 +192,11 @@ export default async function RequestsPage({
                         {r.status}
                       </span>
                     </div>
+                    {me.role === "agent" && r.jockey_id && managedIds.has(r.jockey_id) ? (
+                      <p className="mt-0.5 text-sm text-zinc-500">
+                        For: <span className="font-medium text-turf-700">{names.get(r.jockey_id) ?? "Your rider"}</span>
+                      </p>
+                    ) : null}
                     <p className="mt-0.5 text-sm text-zinc-500">
                       {otherRole}: <span className="font-medium text-zinc-700">{otherName ?? "Not yet registered"}</span>
                       {meeting ? ` · ${meeting.track}` : ""}

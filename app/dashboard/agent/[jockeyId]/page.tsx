@@ -19,6 +19,7 @@ import {
   REQUEST_STATUS_STYLES,
 } from "@/lib/utils";
 import { updateManagedJockey } from "../actions";
+import { updateRequestStatus } from "@/app/dashboard/requests/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,7 @@ export default async function ActingForJockeyPage({
   // Their ride requests.
   const { data: reqRows } = await supabase
     .from("ride_requests")
-    .select("id, horse_name, race_number, status, meeting_id, created_at, meetings(meeting_date, track)")
+    .select("id, horse_name, race_number, status, meeting_id, created_by, created_at, meetings(meeting_date, track)")
     .eq("jockey_id", jockeyId)
     .order("created_at", { ascending: false })
     .limit(30);
@@ -191,23 +192,40 @@ export default async function ActingForJockeyPage({
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">Ride requests · {requests.length}</h2>
         {requests.length > 0 ? (
           <div className="grid gap-2">
-            {requests.slice(0, 12).map((r) => (
-              <Link
-                key={r.id}
-                href={r.meeting_id ? `/meetings/${r.meeting_id}` : "/dashboard/requests"}
-                className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card transition-all hover:border-turf-200 hover:shadow-lift"
-              >
-                {r.meetings?.meeting_date ? <DateBlock date={r.meetings.meeting_date} /> : null}
-                <div className="min-w-0 flex-1">
-                  <p className="font-display font-semibold text-ink">{r.horse_name || "Ride"}{r.race_number ? ` · R${r.race_number}` : ""}</p>
-                  <p className="mt-0.5 text-sm text-zinc-500">
-                    {r.meetings?.track ?? "Meeting"}
-                    {r.meetings?.meeting_date ? ` · ${formatMeetingDate(r.meetings.meeting_date)}` : ""}
-                  </p>
+            {requests.slice(0, 12).map((r) => {
+              const incoming = r.status === "requested" && r.created_by !== user.id;
+              return (
+                <div
+                  key={r.id}
+                  className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card"
+                >
+                  {r.meetings?.meeting_date ? <DateBlock date={r.meetings.meeting_date} /> : null}
+                  <Link href={r.meeting_id ? `/meetings/${r.meeting_id}` : "/dashboard/requests"} className="min-w-0 flex-1">
+                    <p className="font-display font-semibold text-ink hover:text-turf-700">{r.horse_name || "Ride"}{r.race_number ? ` · R${r.race_number}` : ""}</p>
+                    <p className="mt-0.5 text-sm text-zinc-500">
+                      {r.meetings?.track ?? "Meeting"}
+                      {r.meetings?.meeting_date ? ` · ${formatMeetingDate(r.meetings.meeting_date)}` : ""}
+                    </p>
+                  </Link>
+                  {incoming ? (
+                    <div className="flex items-center gap-2">
+                      <form action={updateRequestStatus}>
+                        <input type="hidden" name="request_id" value={r.id} />
+                        <input type="hidden" name="next_status" value="declined" />
+                        <Button size="sm" variant="outline">Decline</Button>
+                      </form>
+                      <form action={updateRequestStatus}>
+                        <input type="hidden" name="request_id" value={r.id} />
+                        <input type="hidden" name="next_status" value="accepted" />
+                        <Button size="sm" variant="accent">Accept</Button>
+                      </form>
+                    </div>
+                  ) : (
+                    <span className={cn("shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize", REQUEST_STATUS_STYLES[r.status] ?? "border-line text-zinc-500")}>{r.status}</span>
+                  )}
                 </div>
-                <span className={cn("shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize", REQUEST_STATUS_STYLES[r.status] ?? "border-line text-zinc-500")}>{r.status}</span>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <EmptyState title="No ride requests yet">

@@ -147,6 +147,21 @@ export default async function JockeyProfilePage({
               {jockey.licence_type ? <Badge tone="neutral">{LICENCE_LABELS[jockey.licence_type] ?? jockey.licence_type}</Badge> : null}
             </div>
             {jockey.base_region ? <p className="mt-2 text-sm text-zinc-500">Based in {jockey.base_region}</p> : null}
+            {agent ? (
+              <p className="mt-2 text-sm text-zinc-600">
+                Represented by{" "}
+                <Link href={`/agents/${agent.id}`} className="font-semibold text-turf-700 hover:underline">
+                  {agent.full_name ?? "their agent"}
+                </Link>
+                {jockey.show_agent_phone && agent.phone ? (
+                  <>
+                    {" · "}
+                    <a href={`tel:${agent.phone}`} className="font-medium text-ink hover:underline">{agent.phone}</a>
+                  </>
+                ) : null}
+                <span className="block text-xs text-zinc-400">Contact the agent for bookings.</span>
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
