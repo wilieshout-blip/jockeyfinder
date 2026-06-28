@@ -254,6 +254,9 @@ export default async function AgentPage({
                         {j.base_region ? ` · ${j.base_region}` : ""}
                         {!j.verified ? " · awaiting verification" : ""}
                       </p>
+                      {j.is_placeholder ? (
+                        <p className="mt-0.5 text-xs text-amber-600">(needs to create an account to sync)</p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Link

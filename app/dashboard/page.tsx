@@ -874,6 +874,9 @@ export default async function DashboardPage() {
                           {j.apprentice && formatClaim(j.apprentice_claim) ? ` · claims ${formatClaim(j.apprentice_claim)}` : ""}
                           {rides > 0 ? ` · ${rides} upcoming` : ""}
                         </p>
+                        {j.is_placeholder ? (
+                          <p className="mt-0.5 text-xs text-amber-600">(needs to create an account to sync)</p>
+                        ) : null}
                       </div>
                       <span className="shrink-0 rounded-full border border-turf-200 bg-turf-50 px-2.5 py-0.5 text-xs font-medium text-turf-700 group-hover:bg-turf-100">
                         Manage →

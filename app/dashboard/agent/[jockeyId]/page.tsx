@@ -128,6 +128,9 @@ export default async function ActingForJockeyPage({
               {jockey.apprentice && formatClaim(jockey.apprentice_claim) ? ` · claims ${formatClaim(jockey.apprentice_claim)}` : ""}
               {jockey.base_region ? ` · ${jockey.base_region}` : ""}
             </p>
+            {jockey.is_placeholder ? (
+              <p className="mt-1 text-xs text-amber-600">(needs to create an account to sync)</p>
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
