@@ -101,12 +101,12 @@ export default async function TrainerProfilePage({
   // Season + career stats from the LoveRacing trainer premiership feed, matched
   // on the first partner's initial+surname (partnerships are "A B & C D").
   let tstat:
-    | { season_wins: number; season_seconds: number; season_thirds: number; season_starts: number; career_wins: number; career_starts: number }
+    | { season_wins: number; season_seconds: number; season_thirds: number; season_starts: number; season_stakes: number; career_wins: number; career_starts: number }
     | null = null;
   if (trainer.full_name) {
     const { data: premRows } = await supabase
       .from("nztr_trainer_stats")
-      .select("name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts");
+      .select("name, season_wins, season_seconds, season_thirds, season_starts, season_stakes, career_wins, career_starts");
     const myKey = registryKey(trainer.full_name);
     tstat =
       ((premRows ?? []).find(
@@ -195,7 +195,19 @@ export default async function TrainerProfilePage({
           {tstat.career_wins > 0 ? (
             <p className="mt-2 text-xs text-zinc-400">
               Last 5 seasons: <span className="font-semibold text-zinc-500">{tstat.career_wins}</span> wins from{" "}
-              {tstat.career_starts} runners · from LoveRacing premierships
+              {tstat.career_starts} runners
+              {tstat.season_stakes > 0 ? (
+                <>
+                  {" · "}
+                  <span className="font-semibold text-zinc-500">
+                    {tstat.season_stakes >= 1_000_000
+                      ? `$${(tstat.season_stakes / 1_000_000).toFixed(2)}m`
+                      : `$${Math.round(tstat.season_stakes / 1_000)}k`}
+                  </span>{" "}
+                  season stakes
+                </>
+              ) : null}
+              {" · from LoveRacing premierships"}
             </p>
           ) : null}
         </section>

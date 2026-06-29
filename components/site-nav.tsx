@@ -13,6 +13,7 @@ const links = [
   { href: "/meetings", label: "Meetings" },
   { href: "/jockeys", label: "Jockeys" },
   { href: "/trainers", label: "Trainers" },
+  { href: "/premierships", label: "Premierships" },
   { href: "/features", label: "Features" },
 ];
 

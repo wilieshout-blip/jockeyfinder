@@ -17,10 +17,24 @@ export interface JockeyStatsData {
   careerWins: number;
   careerStarts: number;
   careerIsTrue?: boolean;
+  careerStakes?: number | null;
+  premiershipPlace?: number | null;
   suspensionsCount?: number | null;
   lastSuspensionDate?: string | null;
   seasonLabel: string;
   recentWins: RecentWin[];
+}
+
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
+function fmtStakes(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}m`;
+  if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
+  return `$${n}`;
 }
 
 function StatBox({ value, label, accent }: { value: number | string; label: string; accent?: boolean }) {
@@ -42,8 +56,8 @@ function formatDate(iso: string): string {
 export function JockeyStats({ stats }: { stats: JockeyStatsData }) {
   const {
     hasPremiership, seasonWins, seasonSeconds, seasonThirds, seasonStarts,
-    careerWins, careerStarts, careerIsTrue, suspensionsCount, lastSuspensionDate,
-    seasonLabel, recentWins,
+    careerWins, careerStarts, careerIsTrue, careerStakes, premiershipPlace,
+    suspensionsCount, lastSuspensionDate, seasonLabel, recentWins,
   } = stats;
   const places = seasonSeconds + seasonThirds;
   const winPct = seasonStarts > 0 ? Math.round((seasonWins / seasonStarts) * 100) : 0;
@@ -66,6 +80,20 @@ export function JockeyStats({ stats }: { stats: JockeyStatsData }) {
           </>
         ) : null}
       </p>
+      {hasPremiership && (premiershipPlace || (careerStakes != null && careerStakes > 0)) ? (
+        <div className="flex flex-wrap justify-center gap-2">
+          {premiershipPlace ? (
+            <span className="rounded-full border border-line bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+              {ordinal(premiershipPlace)} in the {seasonLabel} premiership
+            </span>
+          ) : null}
+          {careerStakes != null && careerStakes > 0 ? (
+            <span className="rounded-full border border-line bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+              {fmtStakes(careerStakes)} career stakes
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       {hasPremiership && suspensionsCount != null && suspensionsCount > 0 ? (
         <p className="text-center text-[11px] text-zinc-400">
           {suspensionsCount} career suspension{suspensionsCount === 1 ? "" : "s"}

@@ -84,7 +84,7 @@ export default async function JockeyProfilePage({
     // Match this jockey to a premiership row by first-initial + surname.
     const { data: premRows } = await supabase
       .from("nztr_jockey_stats")
-      .select("name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts, career_is_true, suspensions_count, last_suspension_date");
+      .select("name, season_wins, season_seconds, season_thirds, season_starts, career_wins, career_starts, career_is_true, career_stakes, premiership_place, suspensions_count, last_suspension_date");
     const myKey = registryKey(jockey.full_name);
     const prem = (premRows ?? []).find((r: any) => registryKey(r.name) === myKey) as any;
 
@@ -97,6 +97,8 @@ export default async function JockeyProfilePage({
       careerWins: prem?.career_wins ?? 0,
       careerStarts: prem?.career_starts ?? 0,
       careerIsTrue: !!prem?.career_is_true,
+      careerStakes: prem?.career_stakes ?? null,
+      premiershipPlace: prem?.premiership_place ?? null,
       suspensionsCount: prem?.suspensions_count ?? null,
       lastSuspensionDate: prem?.last_suspension_date ?? null,
       seasonLabel: seasonLabel(),
