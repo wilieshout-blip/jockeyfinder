@@ -8,6 +8,7 @@ import {
   editUser,
   deleteUser,
   sendTestSignupEmail,
+  applyApprenticeClaim,
 } from "@/app/admin/actions";
 
 export interface AdminUser {
@@ -23,7 +24,13 @@ export interface AdminUser {
   is_placeholder: boolean | null;
   suspended: boolean | null;
   apprentice_claim: number | null;
+  official_claim?: number | null;
   created_at: string | null;
+}
+
+/** Format a claim allowance like the public chips: 3 -> "a3", null -> "none". */
+function fmtClaim(v: number | null | undefined): string {
+  return v == null ? "none" : `a${v}`;
 }
 
 const ROLES = ["jockey", "trainer", "owner", "agent", "admin"];
@@ -123,6 +130,10 @@ export function AdminUsersTable({ users }: { users: AdminUser[] }) {
               const status = u.verification_status ?? "pending";
               const isApproved = status === "approved";
               const isEditing = editingId === u.id;
+              const claimMismatch =
+                u.role === "jockey" &&
+                u.official_claim != null &&
+                (u.official_claim || null) !== (u.apprentice_claim || null);
               return (
                 <Fragment key={u.id}>
                   <tr className={cn("align-top", u.suspended && "bg-amber-50/40")}>
@@ -134,6 +145,20 @@ export function AdminUsersTable({ users }: { users: AdminUser[] }) {
                       </p>
                       <p className="text-xs text-zinc-500">{u.email || "no email"}</p>
                       <p className="text-xs text-zinc-400">{u.phone || ""}{u.registry_match ? " · registry ✓" : ""}</p>
+                      {claimMismatch ? (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                            NZTR claim {fmtClaim(u.official_claim)} · now {fmtClaim(u.apprentice_claim)}
+                          </span>
+                          <form action={applyApprenticeClaim}>
+                            <input type="hidden" name="user_id" value={u.id} />
+                            <input type="hidden" name="claim" value={u.official_claim ?? ""} />
+                            <button className="rounded bg-ink px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-zinc-700">
+                              Apply
+                            </button>
+                          </form>
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-3 py-3">
                       <span className="rounded-full bg-mist px-2 py-0.5 text-xs font-medium capitalize text-zinc-600">

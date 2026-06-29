@@ -107,6 +107,26 @@ export async function setUserSuspended(formData: FormData) {
   revalidatePath("/admin");
 }
 
+/**
+ * One-click: set a jockey's apprentice claim to the official NZTR allowance
+ * (surfaced from nztr_jockey_claims on the users page). Kept separate from
+ * editUser so applying it can't disturb the user's other fields. Admin stays in
+ * control — nothing auto-changes; this only runs on an explicit click.
+ */
+export async function applyApprenticeClaim(formData: FormData) {
+  await assertAdmin();
+  const id = String(formData.get("user_id") || "");
+  const claimRaw = String(formData.get("claim") || "").trim();
+  if (!id) return;
+  const claim = claimRaw ? Number(claimRaw) : null;
+  const admin = createAdminClient();
+  await admin
+    .from("profiles")
+    .update({ apprentice_claim: claim, apprentice: claim != null && claim > 0 })
+    .eq("id", id);
+  revalidatePath("/admin/users");
+}
+
 /** Edit a user's core details: name, email, phone, role. Email also updates the
  * underlying auth identity so the user can still sign in. */
 export async function editUser(formData: FormData) {
