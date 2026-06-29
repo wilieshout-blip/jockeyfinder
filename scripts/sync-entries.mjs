@@ -101,6 +101,12 @@ function clean(s) {
     .trim();
 }
 
+/** The silk colours description lives in the col-silk <img title="..."> attribute. */
+function silkTitle(cell) {
+  const t = (String(cell || "").match(/title="([^"]*)"/) || [])[1];
+  return t ? clean(t) || null : null;
+}
+
 // Parse the div-based meeting-overview layout into runner rows.
 export function parseEntries(html) {
   const out = [];
@@ -126,33 +132,70 @@ export function parseEntries(html) {
     );
     while ((m = fRe.exec(region)) !== null) { draw[m[4]] = m[1]; rgt[m[4]] = m[2]; wgt[m[4]] = m[3]; }
 
+    // strip non-country trailing markers like " (B3)" so names stay stable across
+    // syncs (keep country codes such as " (AUS)" / " (NZ)").
+    const cleanHorse = (s) => clean(s).replace(/\s*\((?![A-Z]{2,3}\))[^)]*\)\s*$/, "").trim();
+    const breeding = (subtext) => {
+      const sub = clean(subtext).replace(/^\(/, "").replace(/\)$/, "");
+      const sm = sub.match(/^([0-9]+[a-z]+)\s+(.*)$/i);
+      let sire = null, dam = null;
+      if (sm) { const parts = sm[2].split(" - "); sire = parts[0] ? clean(parts[0]) : null; dam = parts[1] ? clean(parts[1]) : null; }
+      return { age_sex: sm ? sm[1] : null, sire, dam };
+    };
+
+    // Runners with a declared jockey (have a HorseID EntryDetail link). The
+    // col-silk cell (before col-form) carries the silk colours description.
     const hRe = new RegExp(
-      'col-number">([0-9]+)</div>.*?col-form">([^<]*)</div>.*?col-horse">.*?HorseID=([0-9]+)[^"]*Modal01"[^>]*>([^<]+)</a><span class="subtext">([^<]*)<',
+      'col-number">([0-9]+)</div>.*?col-silk">(.*?)</div>.*?col-form">([^<]*)</div>.*?col-horse">.*?HorseID=([0-9]+)[^"]*Modal01"[^>]*>([^<]+)</a><span class="subtext">([^<]*)<',
       "gs"
     );
     while ((m = hRe.exec(region)) !== null) {
-      const id = m[3];
-      const sub = clean(m[5]).replace(/^\(/, "").replace(/\)$/, "");
-      const sm = sub.match(/^([0-9]+[a-z]+)\s+(.*)$/i);
-      const ageSex = sm ? sm[1] : null;
-      let sire = null, dam = null;
-      if (sm) { const parts = sm[2].split(" - "); sire = parts[0] ? clean(parts[0]) : null; dam = parts[1] ? clean(parts[1]) : null; }
+      const id = m[4];
+      const b = breeding(m[6]);
       out.push({
         race_number: raceNum,
         horse_number: parseInt(m[1], 10),
-        // strip non-country trailing markers like " (B3)" so names stay stable
-        // across syncs (keep country codes such as " (AUS)" / " (NZ)").
-        horse_name: clean(m[4]).replace(/\s*\((?![A-Z]{2,3}\))[^)]*\)\s*$/, "").trim(),
+        horse_name: cleanHorse(m[5]),
         nztr_horse_id: id,
-        form: clean(m[2]) || null,
-        age_sex: ageSex,
-        sire,
-        dam,
+        form: clean(m[3]) || null,
+        age_sex: b.age_sex,
+        sire: b.sire,
+        dam: b.dam,
         jockey_name: jockey[id] || null,
         trainer_name: trainer[id] || null,
         barrier: draw[id] && /^[0-9]+$/.test(draw[id].trim()) ? parseInt(draw[id], 10) : null,
         weight: wgt[id] && !isNaN(parseFloat(wgt[id])) ? parseFloat(wgt[id]) : null,
         rating: rgt[id] && /^[0-9]+$/.test(rgt[id].trim()) ? parseInt(rgt[id], 10) : null,
+        silk_description: silkTitle(m[2]),
+        scratched: false,
+      });
+    }
+
+    // Scratched runners: row class "nztr-row scratched"; the horse name is plain
+    // text in col-horse (no jockey / HorseID link), so the loop above skips them.
+    // Capturing them powers the Gap Finder + scratching alerts.
+    const sRe = new RegExp(
+      'nztr-row scratched"[^>]*>.*?col-number">([0-9]+)</div>.*?col-silk">(.*?)</div>.*?col-form">([^<]*)</div>.*?col-horse">\\s*([^<]+?)\\s*<span class="subtext">([^<]*)<',
+      "gs"
+    );
+    while ((m = sRe.exec(region)) !== null) {
+      const b = breeding(m[5]);
+      out.push({
+        race_number: raceNum,
+        horse_number: parseInt(m[1], 10),
+        horse_name: cleanHorse(m[4]),
+        nztr_horse_id: null,
+        form: clean(m[3]) || null,
+        age_sex: b.age_sex,
+        sire: b.sire,
+        dam: b.dam,
+        jockey_name: null,
+        trainer_name: null,
+        barrier: null,
+        weight: null,
+        rating: null,
+        silk_description: silkTitle(m[2]),
+        scratched: true,
       });
     }
   }
